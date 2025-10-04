@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Psychiatry - PHQ-A Note Builder (Protected)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{--bg:#f9f9f9;--card:#fff;--muted:#666;--accent:#333}
+  body { font-family: Arial, Helvetica, sans-serif; background: var(--bg); margin:0; padding:20px; color:#222; }
+  .center { max-width:800px; margin:18px auto; }
+  h1 { text-align:center; font-weight:700; font-size:28px; margin:12px 0 20px; }
+  label { display:block; margin-top:12px; font-weight:700; }
+  input, textarea, select, button { width:100%; padding:10px; margin-top:6px; border-radius:6px; border:1px solid #ccc; box-sizing:border-box; font-weight:700; }
+  textarea{ resize:vertical; min-height:80px; }
+  button { background:var(--accent); color:#fff; border:none; cursor:pointer; }
+  button:hover{ background:#555; }
+  .small { font-size:12px; color:var(--muted); margin-left:6px; font-weight:400; }
+  pre { background:var(--card); padding:12px; border-radius:8px; margin-top:14px; white-space:pre-wrap; border:1px solid #e0e0e0; }
+
+  /* Login card */
+  .login-wrap{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.35); z-index:999; }
+  .login-card{ background:var(--card); padding:22px; border-radius:10px; width:360px; box-shadow:0 8px 30px rgba(0,0,0,0.15); }
+  .login-card h2{ margin:0 0 10px; font-size:20px; text-align:center; }
+  .hint{ font-size:12px; color:var(--muted); text-align:center; margin-top:8px; }
+
+  /* Hidden by default until login */
+  #app { display:none; }
+
+  .top-row{ display:flex; gap:12px; }
+  .top-row input{ width:100%; }
+  .logout{ margin-top:10px; background:#b33; }
+</style>
+</head>
+<body>
+  <!-- Login Overlay -->
+  <div id="login" class="login-wrap" aria-hidden="false">
+    <div class="login-card" role="dialog" aria-label="Site login">
+      <h2>Protected Access</h2>
+      <label for="loginUser">Username</label>
+      <input id="loginUser" type="text" autocomplete="username" placeholder="username">
+      <label for="loginPass">Password</label>
+      <input id="loginPass" type="password" autocomplete="current-password" placeholder="password">
+      <button id="loginBtn">Enter</button>
+      <div class="hint">This is client-side protection only. Not secure for sensitive data.</div>
+    </div>
+  </div>
+
+  <!-- Main app (hidden until login) -->
+  <div id="app" class="center" role="main">
+    <h1>Psychiatry - PHQ-A Note Builder</h1>
+
+    <label>Patient Name:</label>
+    <input type="text" id="patientName" placeholder="Enter patient name">
+
+    <div class="top-row">
+      <div style="flex:0 0 130px;">
+        <label>Age:</label>
+        <input type="number" id="age" min="0" max="120" placeholder="Age">
+      </div>
+      <div style="flex:1;">
+        <label>Date:</label>
+        <input type="date" id="noteDate">
+      </div>
+    </div>
+
+    <label>PHQ-9-A Score:</label>
+    <input type="number" id="phqScore" min="0" max="27" placeholder="0–27">
+
+    <label>Severity: <span class="small">(auto-updates from score — can override)</span></label>
+    <select id="severity">
+      <option value="Minimal/None">Minimal/None (0–4)</option>
+      <option value="Mild">Mild (5–9)</option>
+      <option value="Moderate">Moderate (10–14)</option>
+      <option value="Moderately Severe">Moderately Severe (15–19)</option>
+      <option value="Severe">Severe (20–27)</option>
+    </select>
+
+    <label>Provider (Name & Credentials):</label>
+    <input type="text" id="provider" placeholder="Enter provider name & credentials">
+
+    <label>Patient Report:</label>
+    <textarea id="patientReport" placeholder="Enter patient report..."></textarea>
+
+    <label>Plan:</label>
+    <textarea id="plan" placeholder="Enter plan..."></textarea>
+
+    <div style="display:flex; gap:12px; align-items:center;">
+      <button id="generateBtn" style="flex:1;">Generate PDF</button>
+      <button id="logoutBtn" class="logout" style="flex:0 0 110px;">Log out</button>
+    </div>
+
+    <pre id="output" aria-live="polite"></pre>
+  </div>
+
+<script>
+/*
+  CLIENT-SIDE LOGIN (NOT SECURE)
+  - Credentials set below
+  - Uses sessionStorage to keep the session until tab is closed
+*/
+const CREDENTIALS = { user: 'nmccgsuh', pass: '15358' }; // <-- username & password you requested
+
+const loginWrap = document.getElementById('login');
+const loginUser = document.getElementById('loginUser');
+const loginPass = document.getElementById('loginPass');
+const loginBtn = document.getElementById('loginBtn');
+const app = document.getElementById('app');
+const logoutBtn = document.getElementById('logoutBtn');
+
+// Check session on load
+function checkSession() {
+  const ok = sessionStorage.getItem('phq_authenticated') === '1';
+  if (ok) {
+    showApp();
+  } else {
+    showLogin();
+  }
+}
+function showLogin(){
+  loginWrap.style.display = 'flex';
+  app.style.display = 'none';
+  loginWrap.setAttribute('aria-hidden','false');
+  loginUser.focus();
+}
+function showApp(){
+  loginWrap.style.display = 'none';
+  loginWrap.setAttribute('aria-hidden','true');
+  app.style.display = 'block';
+  document.getElementById('patientName').focus();
+}
+
+// Authenticate
+function authenticate() {
+  const u = (loginUser.value||'').trim();
+  const p = (loginPass.value||'').trim();
+  if (u === CREDENTIALS.user && p === CREDENTIALS.pass) {
+    sessionStorage.setItem('phq_authenticated','1');
+    loginUser.value=''; loginPass.value='';
+    showApp();
+  } else {
+    alert('Incorrect username or password.');
+  }
+}
+
+loginBtn.addEventListener('click', authenticate);
+loginPass.addEventListener('keydown', (e)=>{ if(e.key==='Enter') authenticate(); });
+loginUser.addEventListener('keydown', (e)=>{ if(e.key==='Enter') loginPass.focus(); });
+
+logoutBtn.addEventListener('click', ()=>{
+  sessionStorage.removeItem('phq_authenticated');
+  showLogin();
+});
+
+// initialize
+checkSession();
+
+/* ----- PHQ logic & PDF generation ----- */
+
+// Map score to severity
+function scoreToSeverity(score) {
+  const s = Number(score);
+  if (isNaN(s)) return null;
+  if (s >= 0 && s <= 4) return "Minimal/None";
+  if (s >= 5 && s <= 9) return "Mild";
+  if (s >= 10 && s <= 14) return "Moderate";
+  if (s >= 15 && s <= 19) return "Moderately Severe";
+  if (s >= 20 && s <= 27) return "Severe";
+  return null;
+}
+
+// Auto update dropdown
+const phqInput = document.getElementById('phqScore');
+const severitySelect = document.getElementById('severity');
+phqInput.addEventListener('input', () => {
+  const sev = scoreToSeverity(phqInput.value);
+  if (sev !== null) {
+    for (let i=0;i<severitySelect.options.length;i++){
+      if (severitySelect.options[i].value === sev) { severitySelect.selectedIndex = i; break; }
+    }
+  }
+});
+
+// PDF generation (uses default jsPDF font; no base64 required)
+document.getElementById('generateBtn').addEventListener('click', () => {
+  const { jsPDF } = window.jspdf;
+  const name = document.getElementById('patientName').value || "[Name/ID]";
+  const age = document.getElementById('age') ? (document.getElementById('age').value || "[Age]") : "[Age]";
+  const date = document.getElementById('noteDate').value || new Date().toLocaleDateString();
+  const phq = document.getElementById('phqScore').value || "[insert score]";
+  const severityLabel = document.getElementById('severity').value;
+  const provider = document.getElementById('provider').value || "Dr. [Name], MD";
+  const patientReport = document.getElementById('patientReport').value || "PATIENT REPORT GOES HERE";
+  const plan = document.getElementById('plan').value || "PLAN GOES HERE";
+
+  const evaluation = `PHQ-9-A administered. Total score: ${phq}.\nTHIS SCORE INDICATES [${severityLabel.toUpperCase()}] DEPRESSION`;
+
+  const note = `
+Psychiatry
+
+Patient: ${name}
+Age: ${age}
+Date: ${date}
+Provider: ${provider}
+
+Patient Report:
+${patientReport}
+
+Evaluation:
+${evaluation}
+
+Plan:
+${plan}
+  `;
+
+  const doc = new jsPDF();
+  doc.setFontSize(12);
+
+  let y = 12;
+  const lineHeight = 7;
+  const leftMargin = 12;
+
+  note.split("\n").forEach(line => {
+    const wrapped = doc.splitTextToSize(line, 180);
+    doc.text(wrapped, leftMargin, y);
+    y += lineHeight * wrapped.length;
+    if (y > 280) { doc.addPage(); y = 12; }
+  });
+
+  const safeName = name.replace(/[^a-z0-9_\-]/gi, '_').slice(0,40) || 'patient';
+  doc.save(`PHQ-A_Note_${safeName}_${date}.pdf`);
+
+  document.getElementById('output').textContent = note;
+});
+</script>
+</body>
+</html>
