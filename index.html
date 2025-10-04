@@ -3,21 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Psych RP Tools</title>
+<title>Psych RP Tool</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-body { background: #f9f9f9; padding: 20px; color: #222; font-family: sans-serif; }
+body { font-family: sans-serif; background: #f9f9f9; padding: 20px; color: #222; }
 h1 { text-align: center; font-weight: bold; font-size: 32px; margin-bottom: 20px; }
 label { display: block; margin-top: 12px; font-weight: bold; }
-input, textarea, select, button { width: 100%; padding: 8px; margin-top: 5px; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; font-weight: bold; }
-button { background: #333; color: #fff; cursor: pointer; }
-button:hover { background: #555; }
-.small { font-size: 12px; color: #666; }
-#output { white-space: pre-wrap; margin-top: 12px; border:1px solid #ccc; padding: 8px; background:#fff; border-radius:5px; }
+input, textarea, select, button { width: 100%; padding: 8px; margin-top: 5px; border-radius: 5px; border:1px solid #ccc; box-sizing:border-box; font-weight:bold; }
+button { background:#333; color:#fff; cursor:pointer; }
+button:hover { background:#555; }
+.tab { display: none; }
+.tabs button { width: 49%; display: inline-block; margin-top:10px; }
+#output { white-space: pre-wrap; margin-top:12px; border:1px solid #ccc; padding:8px; background:#fff; border-radius:5px; }
+.small { font-size:12px; color:#666; }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script>
-const { jsPDF } = window.jspdf;
-</script>
 </head>
 <body>
 
@@ -26,7 +25,7 @@ alert("Disclaimer: This is not a real psychiatric center. No real patient data o
 </script>
 
 <div id="loginDiv">
-<h1>Psych RP Tools Login</h1>
+<h1>Login</h1>
 <label>Username:</label>
 <input type="text" id="username">
 <label>Password:</label>
@@ -35,17 +34,18 @@ alert("Disclaimer: This is not a real psychiatric center. No real patient data o
 </div>
 
 <div id="mainDiv" style="display:none;">
-<h1>Psych RP Tool — PHQ + GAD Form</h1>
+<h1>Psych RP Tool</h1>
 
-<label>Patient Name:</label>
-<input type="text" id="patientName">
+<div class="tabs">
+<button onclick="showTab('phq')">PHQ-9-A</button>
+<button onclick="showTab('gad')">GAD-7</button>
+</div>
 
-<label>Age:</label>
-<input type="number" id="age" min="0" max="120">
-
-<label>PHQ-9-A Score:</label>
-<input type="number" id="phqScore" min="0" max="27" placeholder="0–27">
-<label class="small">Auto severity updates with score</label>
+<div id="phq" class="tab">
+<label>Patient Name:</label><input type="text" id="phqName">
+<label>Age:</label><input type="number" id="phqAge" min="0" max="120">
+<label>PHQ-9-A Score:</label><input type="number" id="phqScore" min="0" max="27">
+<label class="small">Auto severity updates</label>
 <select id="phqSeverity">
   <option value="Minimal/None">Minimal/None (0–4)</option>
   <option value="Mild">Mild (5–9)</option>
@@ -53,143 +53,103 @@ alert("Disclaimer: This is not a real psychiatric center. No real patient data o
   <option value="Moderately Severe">Moderately Severe (15–19)</option>
   <option value="Severe">Severe (20–27)</option>
 </select>
+</div>
 
-<label>GAD-7 Score:</label>
-<input type="number" id="gadScore" min="0" max="21" placeholder="0–21">
-<label class="small">Auto severity updates with score</label>
+<div id="gad" class="tab">
+<label>Patient Name:</label><input type="text" id="gadName">
+<label>Age:</label><input type="number" id="gadAge" min="0" max="120">
+<label>GAD-7 Score:</label><input type="number" id="gadScore" min="0" max="21">
+<label class="small">Auto severity updates</label>
 <select id="gadSeverity">
   <option value="Mild">Mild (0–5)</option>
   <option value="Moderate">Moderate (6–10)</option>
   <option value="Severe">Severe (11–21)</option>
 </select>
+</div>
 
-<label>Provider (Name & Credentials):</label>
-<input type="text" id="provider" placeholder="Enter provider name & credentials">
+<label>Provider (Name & Credentials):</label><input type="text" id="provider">
 
-<label>Patient Report:</label>
-<textarea id="patientReport" rows="3"></textarea>
-
-<label>Plan:</label>
-<textarea id="plan" rows="3"></textarea>
+<label>Patient Report:</label><textarea id="patientReport" rows="3"></textarea>
+<label>Plan:</label><textarea id="plan" rows="3"></textarea>
 
 <button onclick="generatePDF()">Generate PDF</button>
-<button onclick="viewMyLogs()">View My Logs</button>
 
 <div id="output"></div>
 </div>
 
 <script>
-// --- User data ---
+// Users and passwords
 const users = { "nmccgsuh":"15358", "mjohn":"mj15358", "psych":"psych" };
 const providerNames = { "nmccgsuh":"Dr. Nicolas McCarthy MD PhD FACS", "mjohn":"Dr. Martha Johnson DO" };
-const masterPassword = "gsuhpsychteam";
 
-// --- Login function ---
+// Login
 function login(){
   const u = document.getElementById('username').value.trim();
   const p = document.getElementById('password').value.trim();
-  if(u==="master" && p===masterPassword){
-    alert("Master access granted — view all logs");
-    showMasterLog();
-    return;
-  }
   if(users[u] && users[u]===p){
-    localStorage.setItem("currentUser", u);
     document.getElementById("loginDiv").style.display="none";
     document.getElementById("mainDiv").style.display="block";
-    const provider = providerNames[u] || "";
-    document.getElementById("provider").value = provider;
-    return;
+    document.getElementById("provider").value = providerNames[u] || "";
+  } else {
+    alert("Invalid credentials");
   }
-  alert("Invalid credentials");
 }
 
-// --- Severity mapping ---
-function phqSeverity(score){
-  const s=Number(score);
-  if(s<=4) return "Minimal/None";
-  if(s<=9) return "Mild";
-  if(s<=14) return "Moderate";
-  if(s<=19) return "Moderately Severe";
-  return "Severe";
-}
-function gadSeverity(score){
-  const s=Number(score);
-  if(s<=5) return "Mild";
-  if(s<=10) return "Moderate";
-  return "Severe";
+// Tabs
+function showTab(tab){
+  document.querySelectorAll('.tab').forEach(d=>d.style.display='none');
+  document.getElementById(tab).style.display='block';
 }
 
-// --- Auto update severity ---
+// PHQ Severity
 document.getElementById("phqScore").addEventListener("input",()=>{
-  const val=document.getElementById("phqScore").value;
-  const sev=phqSeverity(val);
+  const val=Number(document.getElementById("phqScore").value);
+  let sev="";
+  if(val<=4) sev="Minimal/None";
+  else if(val<=9) sev="Mild";
+  else if(val<=14) sev="Moderate";
+  else if(val<=19) sev="Moderately Severe";
+  else sev="Severe";
   const sel=document.getElementById("phqSeverity");
-  for(let i=0;i<sel.options.length;i++){ if(sel.options[i].value===sev){ sel.selectedIndex=i; break;}}
-});
-document.getElementById("gadScore").addEventListener("input",()=>{
-  const val=document.getElementById("gadScore").value;
-  const sev=gadSeverity(val);
-  const sel=document.getElementById("gadSeverity");
-  for(let i=0;i<sel.options.length;i++){ if(sel.options[i].value===sev){ sel.selectedIndex=i; break;}}
+  for(let i=0;i<sel.options.length;i++){if(sel.options[i].value===sev){sel.selectedIndex=i;break;}}
 });
 
-// --- PDF generation ---
+// GAD Severity
+document.getElementById("gadScore").addEventListener("input",()=>{
+  const val=Number(document.getElementById("gadScore").value);
+  let sev="";
+  if(val<=5) sev="Mild";
+  else if(val<=10) sev="Moderate";
+  else sev="Severe";
+  const sel=document.getElementById("gadSeverity");
+  for(let i=0;i<sel.options.length;i++){if(sel.options[i].value===sev){sel.selectedIndex=i;break;}}
+});
+
+// PDF generation
 function generatePDF(){
   const doc = new jsPDF();
-  const name=document.getElementById("patientName").value || "[Name]";
-  const age=document.getElementById("age").value || "[Age]";
-  const phq=document.getElementById("phqScore").value || "[PHQ]";
-  const phqSev=document.getElementById("phqSeverity").value;
-  const gad=document.getElementById("gadScore").value || "[GAD]";
-  const gadSev=document.getElementById("gadSeverity").value;
-  const provider=document.getElementById("provider").value || "[Provider]";
-  const report=document.getElementById("patientReport").value || "[Report]";
-  const plan=document.getElementById("plan").value || "[Plan]";
-  
-  const note=`Patient: ${name}\nAge: ${age}\nProvider: ${provider}\n\nPHQ-9-A: ${phq} (${phqSev})\nGAD-7: ${gad} (${gadSev})\n\nPatient Report:\n${report}\n\nPlan:\n${plan}`;
+  // Determine which tab is active
+  const activeTab = document.querySelector('.tab[style*="block"]');
+  const isPHQ = activeTab.id==="phq";
+  const name = isPHQ ? document.getElementById("phqName").value || "[Name]" : document.getElementById("gadName").value || "[Name]";
+  const age = isPHQ ? document.getElementById("phqAge").value || "[Age]" : document.getElementById("gadAge").value || "[Age]";
+  const score = isPHQ ? document.getElementById("phqScore").value || "[Score]" : document.getElementById("gadScore").value || "[Score]";
+  const severity = isPHQ ? document.getElementById("phqSeverity").value : document.getElementById("gadSeverity").value;
+  const provider = document.getElementById("provider").value || "[Provider]";
+  const report = document.getElementById("patientReport").value || "[Report]";
+  const plan = document.getElementById("plan").value || "[Plan]";
 
+  const note=`Patient: ${name}\nAge: ${age}\nProvider: ${provider}\n\n${isPHQ?"PHQ-9-A":"GAD-7"}: ${score} (${severity})\n\nPatient Report:\n${report}\n\nPlan:\n${plan}`;
+  
   let y=10;
   note.split("\n").forEach(line=>{doc.text(10,y,line); y+=7;});
-
   const safeName=name.replace(/[^a-z0-9_\-]/gi,"_").slice(0,40)||"patient";
-  doc.save(`Psych_Note_${safeName}.pdf`);
-
+  doc.save(`${isPHQ?"PHQ":"GAD"}_Note_${safeName}.pdf`);
   document.getElementById("output").textContent=note;
-
-  // --- Save to localStorage ---
-  const currentUser=localStorage.getItem("currentUser");
-  if(currentUser){
-    const logs=JSON.parse(localStorage.getItem("notes")||"[]");
-    logs.push({user:currentUser, name, age, provider, phq, phqSev, gad, gadSev, report, plan, created:new Date().toLocaleString()});
-    localStorage.setItem("notes", JSON.stringify(logs));
-  }
 }
 
-// --- View logs for current user ---
-function viewMyLogs(){
-  const currentUser=localStorage.getItem("currentUser");
-  if(!currentUser){ alert("No user logged in"); return; }
-  const logs=JSON.parse(localStorage.getItem("notes")||"[]");
-  const filtered=logs.filter(l=>l.user===currentUser);
-  let output="--- My Logs ---\n";
-  filtered.forEach(l=>{
-    output+=`Patient: ${l.name}, Age: ${l.age}, PHQ: ${l.phq} (${l.phqSev}), GAD: ${l.gad} (${l.gadSev}), Provider: ${l.provider}, Created: ${l.created}\n\n`;
-  });
-  if(filtered.length===0) output+="No logs yet.";
-  alert(output);
-}
-
-// --- Master view ---
-function showMasterLog(){
-  const logs=JSON.parse(localStorage.getItem("notes")||"[]");
-  let output="--- All Logs ---\n";
-  logs.forEach(l=>{
-    output+=`User: ${l.user}, Patient: ${l.name}, Age: ${l.age}, PHQ: ${l.phq} (${l.phqSev}), GAD: ${l.gad} (${l.gadSev}), Provider: ${l.provider}, Created: ${l.created}\n\n`;
-  });
-  if(logs.length===0) output+="No logs yet.";
-  alert(output);
-}
+// Initialize first tab
+showTab('phq');
 </script>
 
 </body>
