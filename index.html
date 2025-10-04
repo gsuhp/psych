@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Psych RP Tool</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="jspdf.min.js"></script> <!-- Download jspdf.min.js locally -->
 <style>
 body { font-family: sans-serif; background: #f9f9f9; padding: 20px; color: #222; }
 h1 { text-align: center; font-weight: bold; font-size: 32px; margin-bottom: 20px; }
@@ -31,10 +31,20 @@ alert("Disclaimer: This is not a real psychiatric center. No real patient data o
 <label>Password:</label>
 <input type="password" id="password">
 <button onclick="login()">Login</button>
+<button onclick="forgotPassword()">Forgot Password?</button>
+</div>
+
+<div id="forgotDiv" style="display:none;">
+<h1>Forgot Password</h1>
+<label>Code?</label>
+<input type="password" id="fpcode">
+<button onclick="submitForgot()">Submit</button>
+<button onclick="backToLogin()">Back</button>
 </div>
 
 <div id="mainDiv" style="display:none;">
 <h1>Psych RP Tool</h1>
+<button onclick="logout()">Logout</button>
 
 <div class="tabs">
 <button onclick="showTab('phq')">PHQ-9-A</button>
@@ -73,33 +83,39 @@ alert("Disclaimer: This is not a real psychiatric center. No real patient data o
 <label>Plan:</label><textarea id="plan" rows="3"></textarea>
 
 <button onclick="generatePDF()">Generate PDF</button>
-
 <div id="output"></div>
 </div>
 
 <script>
-// Users and passwords
+// Users
 const users = { "nmccgsuh":"15358", "mjohn":"mj15358", "psych":"psych" };
-const providerNames = { "nmccgsuh":"Dr. Nicolas McCarthy MD PhD FACS", "mjohn":"Dr. Martha Johnson DO" };
+const providers = { "nmccgsuh":"Dr. Nicolas McCarthy MD PhD FACS", "mjohn":"Dr. Martha Johnson DO" };
 
 // Login
 function login(){
-  const u = document.getElementById('username').value.trim();
-  const p = document.getElementById('password').value.trim();
+  const u=document.getElementById("username").value.trim();
+  const p=document.getElementById("password").value.trim();
   if(users[u] && users[u]===p){
     document.getElementById("loginDiv").style.display="none";
     document.getElementById("mainDiv").style.display="block";
-    document.getElementById("provider").value = providerNames[u] || "";
-  } else {
-    alert("Invalid credentials");
-  }
+    document.getElementById("provider").value = providers[u] || "";
+  } else { alert("Invalid credentials"); }
 }
 
-// Tabs
-function showTab(tab){
-  document.querySelectorAll('.tab').forEach(d=>d.style.display='none');
-  document.getElementById(tab).style.display='block';
+// Forgot Password
+function forgotPassword(){ document.getElementById("loginDiv").style.display="none"; document.getElementById("forgotDiv").style.display="block"; }
+function backToLogin(){ document.getElementById("forgotDiv").style.display="none"; document.getElementById("loginDiv").style.display="block"; }
+function submitForgot(){
+  const code = document.getElementById("fpcode").value.trim();
+  if(code==="gsuhpsychteam"){ alert("Correct code!"); backToLogin(); }
+  else alert("Incorrect code");
 }
+
+// Logout
+function logout(){ document.getElementById("mainDiv").style.display="none"; document.getElementById("loginDiv").style.display="block"; document.getElementById("username").value=""; document.getElementById("password").value=""; document.getElementById("provider").value=""; }
+
+// Tabs
+function showTab(tab){ document.querySelectorAll(".tab").forEach(d=>d.style.display="none"); document.getElementById(tab).style.display="block"; }
 
 // PHQ Severity
 document.getElementById("phqScore").addEventListener("input",()=>{
@@ -125,7 +141,7 @@ document.getElementById("gadScore").addEventListener("input",()=>{
   for(let i=0;i<sel.options.length;i++){if(sel.options[i].value===sev){sel.selectedIndex=i;break;}}
 });
 
-// PDF generation with proper wrapping
+// PDF generation
 function generatePDF(){
   const doc = new jsPDF();
   const activeTab = document.querySelector('.tab[style*="block"]');
@@ -152,12 +168,12 @@ function generatePDF(){
     ...wrapText(plan, 80)
   ];
 
-  let y = 10;
+  let y=10;
   doc.setFontSize(12);
-  noteLines.forEach(line => {
-    doc.text(line, 10, y);
-    y += 7;
-    if(y>280){ doc.addPage(); y=10; }
+  noteLines.forEach(line=>{
+    doc.text(line,10,y);
+    y+=7;
+    if(y>280){doc.addPage(); y=10;}
   });
 
   const safeName = name.replace(/[^a-z0-9_\-]/gi,"_").slice(0,40)||"patient";
@@ -165,24 +181,19 @@ function generatePDF(){
   document.getElementById("output").textContent = noteLines.join("\n");
 }
 
-// Helper function to wrap long text
-function wrapText(text, maxChars){
-  const words = text.split(" ");
-  const lines = [];
-  let current = "";
-  words.forEach(word => {
-    if((current + " " + word).trim().length > maxChars){
-      lines.push(current.trim());
-      current = word;
-    } else { current += " " + word; }
+function wrapText(text,maxChars){
+  const words=text.split(" ");
+  const lines=[]; let current="";
+  words.forEach(word=>{
+    if((current+word).length>maxChars){lines.push(current.trim()); current="";}
+    current+=word+" ";
   });
   if(current) lines.push(current.trim());
   return lines;
 }
 
-// Initialize first tab
+// Default to PHQ tab
 showTab('phq');
 </script>
-
 </body>
 </html>
