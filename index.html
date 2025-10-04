@@ -125,10 +125,9 @@ document.getElementById("gadScore").addEventListener("input",()=>{
   for(let i=0;i<sel.options.length;i++){if(sel.options[i].value===sev){sel.selectedIndex=i;break;}}
 });
 
-// PDF generation
+// PDF generation with proper wrapping
 function generatePDF(){
   const doc = new jsPDF();
-  // Determine which tab is active
   const activeTab = document.querySelector('.tab[style*="block"]');
   const isPHQ = activeTab.id==="phq";
   const name = isPHQ ? document.getElementById("phqName").value || "[Name]" : document.getElementById("gadName").value || "[Name]";
@@ -139,13 +138,46 @@ function generatePDF(){
   const report = document.getElementById("patientReport").value || "[Report]";
   const plan = document.getElementById("plan").value || "[Plan]";
 
-  const note=`Patient: ${name}\nAge: ${age}\nProvider: ${provider}\n\n${isPHQ?"PHQ-9-A":"GAD-7"}: ${score} (${severity})\n\nPatient Report:\n${report}\n\nPlan:\n${plan}`;
-  
-  let y=10;
-  note.split("\n").forEach(line=>{doc.text(10,y,line); y+=7;});
-  const safeName=name.replace(/[^a-z0-9_\-]/gi,"_").slice(0,40)||"patient";
+  const noteLines = [
+    `Patient: ${name}`,
+    `Age: ${age}`,
+    `Provider: ${provider}`,
+    ``,
+    `${isPHQ?"PHQ-9-A":"GAD-7"}: ${score} (${severity})`,
+    ``,
+    `Patient Report:`,
+    ...wrapText(report, 80),
+    ``,
+    `Plan:`,
+    ...wrapText(plan, 80)
+  ];
+
+  let y = 10;
+  doc.setFontSize(12);
+  noteLines.forEach(line => {
+    doc.text(line, 10, y);
+    y += 7;
+    if(y>280){ doc.addPage(); y=10; }
+  });
+
+  const safeName = name.replace(/[^a-z0-9_\-]/gi,"_").slice(0,40)||"patient";
   doc.save(`${isPHQ?"PHQ":"GAD"}_Note_${safeName}.pdf`);
-  document.getElementById("output").textContent=note;
+  document.getElementById("output").textContent = noteLines.join("\n");
+}
+
+// Helper function to wrap long text
+function wrapText(text, maxChars){
+  const words = text.split(" ");
+  const lines = [];
+  let current = "";
+  words.forEach(word => {
+    if((current + " " + word).trim().length > maxChars){
+      lines.push(current.trim());
+      current = word;
+    } else { current += " " + word; }
+  });
+  if(current) lines.push(current.trim());
+  return lines;
 }
 
 // Initialize first tab
