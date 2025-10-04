@@ -14,6 +14,10 @@ button:hover { background: #555; }
 .small { font-size: 12px; color: #666; }
 #output { white-space: pre-wrap; margin-top: 12px; border:1px solid #ccc; padding: 8px; background:#fff; border-radius:5px; }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const { jsPDF } = window.jspdf;
+</script>
 </head>
 <body>
 
@@ -76,7 +80,7 @@ alert("Disclaimer: This is not a real psychiatric center. No real patient data o
 
 <script>
 // --- User data ---
-const users = { "nmccgsuh":"12345", "mjohn":"12345", "psych":"12345" };
+const users = { "nmccgsuh":"15358", "mjohn":"mj15358", "psych":"psych" };
 const providerNames = { "nmccgsuh":"Dr. Nicolas McCarthy MD PhD FACS", "mjohn":"Dr. Martha Johnson DO" };
 const masterPassword = "gsuhpsychteam";
 
@@ -132,8 +136,7 @@ document.getElementById("gadScore").addEventListener("input",()=>{
 
 // --- PDF generation ---
 function generatePDF(){
-  const {jsPDF} = window.jspdf;
-  const doc=new jsPDF();
+  const doc = new jsPDF();
   const name=document.getElementById("patientName").value || "[Name]";
   const age=document.getElementById("age").value || "[Age]";
   const phq=document.getElementById("phqScore").value || "[PHQ]";
@@ -143,13 +146,15 @@ function generatePDF(){
   const provider=document.getElementById("provider").value || "[Provider]";
   const report=document.getElementById("patientReport").value || "[Report]";
   const plan=document.getElementById("plan").value || "[Plan]";
-  const note=`Patient: ${name}\nAge: ${age}\nProvider: ${provider}\n\nPHQ-9-A: ${phq} (${phqSev})\nGAD-7: ${gad} (${gadSev})\n\nPatient Report:\n${report}\n\nPlan:\n${plan}`;
   
+  const note=`Patient: ${name}\nAge: ${age}\nProvider: ${provider}\n\nPHQ-9-A: ${phq} (${phqSev})\nGAD-7: ${gad} (${gadSev})\n\nPatient Report:\n${report}\n\nPlan:\n${plan}`;
+
   let y=10;
   note.split("\n").forEach(line=>{doc.text(10,y,line); y+=7;});
+
   const safeName=name.replace(/[^a-z0-9_\-]/gi,"_").slice(0,40)||"patient";
   doc.save(`Psych_Note_${safeName}.pdf`);
-  
+
   document.getElementById("output").textContent=note;
 
   // --- Save to localStorage ---
