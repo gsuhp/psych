@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Clock In / Clock Out PDF Generator</title>
+<title>Clock In / Clock Out Daily Log</title>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <style>
   html, body { margin:0; padding:0; height:100%; font-family: Arial, sans-serif; background:#f0f2f5; }
@@ -43,7 +43,7 @@
 
 <div id="fullScreenModal">
   <h1 id="modalTitle">Clock In</h1>
-  <input type="number" id="badgeNumber" placeholder="Enter Badge Number" min="1">
+  <input type="number" id="badgeNumber" placeholder="Enter Badge Number" min="1" max="99999">
   <div>
     <button id="confirmBtn">Confirm</button>
     <button id="cancelBtn">Cancel</button>
@@ -77,8 +77,9 @@ function openModal(type){
 function closeModal(){ modal.style.display = 'none'; }
 
 function confirmClock(){
-  const badge = badgeInput.value.trim();
+  let badge = badgeInput.value.trim();
   if(!badge){ alert('Please enter your badge number'); badgeInput.focus(); return; }
+  if(badge.length > 5){ badge = badge.slice(0,5); } // limit to 5 characters
   const now = new Date();
   const timestamp = now.toLocaleString();
 
@@ -86,29 +87,12 @@ function confirmClock(){
   dailyLog.push({badge, type:actionType, timestamp});
   updateLogTable();
 
-  // Ask if user wants individual PDF
-  if(confirm("Do you want to download your individual PDF for this clock in/out?")){
-    generateIndividualPDF(badge, actionType, timestamp);
-  }
-
   closeModal();
 }
 
 confirmBtn.addEventListener('click', confirmClock);
 cancelBtn.addEventListener('click', closeModal);
 badgeInput.addEventListener('keydown', e=>{ if(e.key==='Enter') confirmClock(); });
-
-function generateIndividualPDF(badge, type, timestamp){
-  const doc = new jsPDF();
-  doc.setFontSize(16);
-  doc.text(`Clock ${type}`, 105, 30, null, null, 'center');
-  doc.setFontSize(14);
-  doc.text(`Badge Number: ${badge}`, 20, 60);
-  doc.text(`Date & Time: ${timestamp}`, 20, 80);
-  doc.text(`Type: Clock ${type}`, 20, 100);
-  const safeBadge = badge.replace(/[^a-z0-9]/gi,'_');
-  doc.save(`Clock_${type}_${safeBadge}_${Date.now()}.pdf`);
-}
 
 function updateLogTable(){
   logTableBody.innerHTML = '';
