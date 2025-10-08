@@ -6,21 +6,40 @@
 <title>Clock In / Clock Out PDF Generator</title>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <style>
-  html, body { margin:0; padding:0; height:100%; font-family: Arial, sans-serif; }
-  body { display:flex; flex-direction:column; justify-content:center; align-items:center; background:#f0f2f5; }
+  html, body { margin:0; padding:0; height:100%; font-family: Arial, sans-serif; background:#f0f2f5; }
+  body { display:flex; flex-direction:column; justify-content:flex-start; align-items:center; padding:20px; }
+  h1 { margin-bottom:20px; }
   button { padding:15px 30px; margin:10px; font-size:20px; cursor:pointer; border:none; border-radius:10px; background:#1f2937; color:white; }
+  #downloadLogBtn { background:#0077cc; font-size:22px; padding:15px 40px; margin:20px 0; }
   #fullScreenModal { display:none; position:fixed; inset:0; background:#fefefe; flex-direction:column; justify-content:center; align-items:center; z-index:9999; }
   #fullScreenModal input { font-size:24px; padding:12px; margin:12px 0; width:300px; border-radius:8px; border:1px solid #ccc; text-align:center; }
-  #fullScreenModal button { font-size:20px; padding:10px 24px; }
-  h1 { margin-bottom:20px; }
+  #fullScreenModal button { font-size:20px; padding:10px 24px; margin:5px; }
+  table { border-collapse: collapse; width: 90%; max-width:800px; margin-top:20px; background:white; border-radius:10px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,0.1);}
+  th, td { padding:12px 15px; text-align:center; border-bottom:1px solid #ddd; font-size:16px; }
+  th { background:#1f2937; color:white; font-size:18px; }
 </style>
 </head>
 <body>
 
 <h1>Clock In / Clock Out</h1>
-<button id="clockInBtn">Clock In</button>
-<button id="clockOutBtn">Clock Out</button>
+<div>
+  <button id="clockInBtn">Clock In</button>
+  <button id="clockOutBtn">Clock Out</button>
+</div>
 <button id="downloadLogBtn">Download Daily Log</button>
+
+<table id="logTable">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Badge Number</th>
+      <th>Type</th>
+      <th>Date & Time</th>
+    </tr>
+  </thead>
+  <tbody>
+  </tbody>
+</table>
 
 <div id="fullScreenModal">
   <h1 id="modalTitle">Clock In</h1>
@@ -34,13 +53,14 @@
 <script>
 const { jsPDF } = window.jspdf;
 
-let actionType = ''; // 'IN' or 'OUT'
+let actionType = '';
 const modal = document.getElementById('fullScreenModal');
 const modalTitle = document.getElementById('modalTitle');
 const badgeInput = document.getElementById('badgeNumber');
 const confirmBtn = document.getElementById('confirmBtn');
 const cancelBtn = document.getElementById('cancelBtn');
-const dailyLog = []; // Store all clock in/out for the day
+const dailyLog = [];
+const logTableBody = document.querySelector('#logTable tbody');
 
 document.getElementById('clockInBtn').addEventListener('click', ()=>openModal('IN'));
 document.getElementById('clockOutBtn').addEventListener('click', ()=>openModal('OUT'));
@@ -62,20 +82,21 @@ function confirmClock(){
   const now = new Date();
   const timestamp = now.toLocaleString();
 
-  // Add to daily log
+  // Always update daily log
   dailyLog.push({badge, type:actionType, timestamp});
+  updateLogTable();
 
-  generateIndividualPDF(badge, actionType, timestamp);
+  // Ask if user wants individual PDF
+  if(confirm("Do you want to download your individual PDF for this clock in/out?")){
+    generateIndividualPDF(badge, actionType, timestamp);
+  }
+
   closeModal();
 }
 
 confirmBtn.addEventListener('click', confirmClock);
 cancelBtn.addEventListener('click', closeModal);
-
-// allow Enter key to confirm
-badgeInput.addEventListener('keydown', e=>{
-  if(e.key === 'Enter') confirmClock();
-});
+badgeInput.addEventListener('keydown', e=>{ if(e.key==='Enter') confirmClock(); });
 
 function generateIndividualPDF(badge, type, timestamp){
   const doc = new jsPDF();
@@ -87,6 +108,20 @@ function generateIndividualPDF(badge, type, timestamp){
   doc.text(`Type: Clock ${type}`, 20, 100);
   const safeBadge = badge.replace(/[^a-z0-9]/gi,'_');
   doc.save(`Clock_${type}_${safeBadge}_${Date.now()}.pdf`);
+}
+
+function updateLogTable(){
+  logTableBody.innerHTML = '';
+  dailyLog.forEach((entry, index)=>{
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${index+1}</td>
+      <td>${entry.badge}</td>
+      <td>Clock ${entry.type}</td>
+      <td>${entry.timestamp}</td>
+    `;
+    logTableBody.appendChild(row);
+  });
 }
 
 function downloadDailyLog(){
