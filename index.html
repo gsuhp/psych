@@ -8,10 +8,10 @@
 <style>
   html, body { margin:0; padding:0; height:100%; font-family: Arial, sans-serif; }
   body { display:flex; flex-direction:column; justify-content:center; align-items:center; background:#f0f2f5; }
-  button { padding:20px 40px; margin:10px; font-size:20px; cursor:pointer; border:none; border-radius:10px; background:#1f2937; color:white; }
+  button { padding:15px 30px; margin:10px; font-size:20px; cursor:pointer; border:none; border-radius:10px; background:#1f2937; color:white; }
   #fullScreenModal { display:none; position:fixed; inset:0; background:#fefefe; flex-direction:column; justify-content:center; align-items:center; z-index:9999; }
   #fullScreenModal input { font-size:24px; padding:12px; margin:12px 0; width:300px; border-radius:8px; border:1px solid #ccc; text-align:center; }
-  #fullScreenModal button { font-size:22px; padding:12px 24px; }
+  #fullScreenModal button { font-size:20px; padding:10px 24px; }
   h1 { margin-bottom:20px; }
 </style>
 </head>
@@ -20,6 +20,7 @@
 <h1>Clock In / Clock Out</h1>
 <button id="clockInBtn">Clock In</button>
 <button id="clockOutBtn">Clock Out</button>
+<button id="downloadLogBtn">Download Daily Log</button>
 
 <div id="fullScreenModal">
   <h1 id="modalTitle">Clock In</h1>
@@ -39,9 +40,11 @@ const modalTitle = document.getElementById('modalTitle');
 const badgeInput = document.getElementById('badgeNumber');
 const confirmBtn = document.getElementById('confirmBtn');
 const cancelBtn = document.getElementById('cancelBtn');
+const dailyLog = []; // Store all clock in/out for the day
 
 document.getElementById('clockInBtn').addEventListener('click', ()=>openModal('IN'));
 document.getElementById('clockOutBtn').addEventListener('click', ()=>openModal('OUT'));
+document.getElementById('downloadLogBtn').addEventListener('click', downloadDailyLog);
 
 function openModal(type){
   actionType = type;
@@ -56,7 +59,13 @@ function closeModal(){ modal.style.display = 'none'; }
 function confirmClock(){
   const badge = badgeInput.value.trim();
   if(!badge){ alert('Please enter your badge number'); badgeInput.focus(); return; }
-  generatePDF(badge, actionType);
+  const now = new Date();
+  const timestamp = now.toLocaleString();
+
+  // Add to daily log
+  dailyLog.push({badge, type:actionType, timestamp});
+
+  generateIndividualPDF(badge, actionType, timestamp);
   closeModal();
 }
 
@@ -68,9 +77,7 @@ badgeInput.addEventListener('keydown', e=>{
   if(e.key === 'Enter') confirmClock();
 });
 
-function generatePDF(badge, type){
-  const now = new Date();
-  const timestamp = now.toLocaleString();
+function generateIndividualPDF(badge, type, timestamp){
   const doc = new jsPDF();
   doc.setFontSize(16);
   doc.text(`Clock ${type}`, 105, 30, null, null, 'center');
@@ -79,7 +86,23 @@ function generatePDF(badge, type){
   doc.text(`Date & Time: ${timestamp}`, 20, 80);
   doc.text(`Type: Clock ${type}`, 20, 100);
   const safeBadge = badge.replace(/[^a-z0-9]/gi,'_');
-  doc.save(`Clock_${type}_${safeBadge}_${now.getTime()}.pdf`);
+  doc.save(`Clock_${type}_${safeBadge}_${Date.now()}.pdf`);
+}
+
+function downloadDailyLog(){
+  if(dailyLog.length === 0){ alert('No clock in/out records yet.'); return; }
+  const doc = new jsPDF();
+  doc.setFontSize(16);
+  doc.text('Daily Clock Log', 105, 20, null, null, 'center');
+  doc.setFontSize(14);
+  let y = 40;
+  dailyLog.forEach((entry, index)=>{
+    doc.text(`${index+1}. Badge: ${entry.badge} | Type: Clock ${entry.type} | Time: ${entry.timestamp}`, 20, y);
+    y += 10;
+    if(y > 280){ doc.addPage(); y = 20; }
+  });
+  const today = new Date().toISOString().split('T')[0];
+  doc.save(`DailyLog_${today}.pdf`);
 }
 </script>
 
