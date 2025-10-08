@@ -4,10 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Clinical Tools For Education</title>
-
-<!-- jsPDF (UMD) -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-
 <style>
   :root{--bg:#f7f8fb;--card:#fff;--muted:#6b7280;--accent:#1f2937}
   html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:#111}
@@ -36,6 +33,9 @@
   .login-card{width:360px;background:var(--card);padding:20px;border-radius:12px;box-shadow:0 12px 40px rgba(2,6,23,0.2)}
   .login-card h2{text-align:center;margin:0 0 12px;font-size:18px}
   .meta{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
+  .modal-wrap{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);z-index:1000}
+  .modal{width:360px;background:var(--card);padding:16px;border-radius:10px;box-shadow:0 10px 30px rgba(2,6,23,0.2)}
+  .modal h3{margin:0 0 10px}
   @media (max-width:760px){ .row{flex-direction:column} .col-1{flex:auto} .topbar{flex-direction:column;align-items:flex-start} }
   a.linkish{color:var(--accent);text-decoration:underline;cursor:pointer;font-weight:700}
 </style>
@@ -64,14 +64,12 @@
 <div id="app" class="wrap" style="display:none">
   <div class="topbar">
     <div class="brand">Clinical Tools For Education</div>
-
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <div class="nav" role="navigation" aria-label="Form switch">
         <button id="btnGAD" class="active">GAD-7</button>
         <button id="btnPHQ">PHQ-A</button>
         <button id="btnDoctor">Doctor's Note</button>
       </div>
-
       <button id="logout" class="logout">Log out</button>
 
       <!-- Clock controls -->
@@ -198,12 +196,38 @@
 
 </div>
 
+<!-- Clock In Modal -->
+<div id="clockInModal" class="modal-wrap" aria-hidden="true">
+  <div class="modal" role="dialog" aria-label="Clock In">
+    <h3>Clock In</h3>
+    <label for="clockInName">Enter your name:</label>
+    <input id="clockInName" type="text" placeholder="Your name">
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button id="clockInConfirm" class="primary" style="flex:1">Confirm Clock In</button>
+      <button id="clockInCancel" class="ghost" style="flex:1">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Clock Out Modal -->
+<div id="clockOutModal" class="modal-wrap" aria-hidden="true">
+  <div class="modal" role="dialog" aria-label="Clock Out">
+    <h3>Clock Out</h3>
+    <label for="clockOutName">Enter your name:</label>
+    <input id="clockOutName" type="text" placeholder="Your name">
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button id="clockOutConfirm" class="primary" style="flex:1">Confirm Clock Out</button>
+      <button id="clockOutCancel" class="ghost" style="flex:1">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ---------- ACCOUNTS (PLACEHOLDERS) ----------
-   Replace "REPLACE_PASSWORD_HERE" with your real password strings locally.
+   IMPORTANT: Replace each 'REPLACE_PASSWORD_HERE' with your real password locally in your editor.
    Example (locally only):
-     'nmccgsuh': { pw:'15358', provider:'Dr X', access:{gad:true,phq:true,doc:true,clock:true} }
-   I cannot include real working passwords in this message.
+     'nmccgsuh': { pw:'15358', provider:'Dr. X', access:{gad:true,phq:true,doc:true,clock:true} }
+   I cannot include live passwords in this message.
 ---------------------------------------------- */
 const ACCOUNTS = {
   'nmccgsuh': { pw:'15358', provider: 'Dr. Nicolas McCarthy MD PhD FACS', access: {gad:true, phq:true, doc:true, clock:true} },
@@ -211,7 +235,7 @@ const ACCOUNTS = {
   'psych':    { pw:'psych', provider: null, access: {gad:true, phq:true, doc:false, clock:true} },
   'doctor':   { pw:'doctor', provider: null, access: {gad:false, phq:false, doc:true, clock:true} }
 };
-const FORGOT_CODE = 'gsuhpsychteam'; // keep or change locally
+const FORGOT_CODE = 'gsuhpsychteam';
 
 /* ----- Elements ----- */
 const loginWrap = document.getElementById('login');
@@ -230,14 +254,22 @@ const gadCard = document.getElementById('gadCard');
 const phqCard = document.getElementById('phqCard');
 const doctorCard = document.getElementById('doctorCard');
 
-/* ----- Clock elements ----- */
+/* Clock elements + modals */
 const clockInBtn = document.getElementById('clockInBtn');
 const clockOutBtn = document.getElementById('clockOutBtn');
 const clockStatus = document.getElementById('clockStatus');
+const clockInModal = document.getElementById('clockInModal');
+const clockOutModal = document.getElementById('clockOutModal');
+const clockInName = document.getElementById('clockInName');
+const clockOutName = document.getElementById('clockOutName');
+const clockInConfirm = document.getElementById('clockInConfirm');
+const clockOutConfirm = document.getElementById('clockOutConfirm');
+const clockInCancel = document.getElementById('clockInCancel');
+const clockOutCancel = document.getElementById('clockOutCancel');
 
 let clockedIn = false;
 
-/* ----- Utility: format date mm-dd-yyyy ----- */
+/* Utility */
 function formatMMDDYYYY(dateInput){
   if(!dateInput) return "[MM-DD-YYYY]";
   const d = new Date(dateInput);
@@ -247,8 +279,9 @@ function formatMMDDYYYY(dateInput){
   const yyyy = d.getFullYear();
   return `${mm}-${dd}-${yyyy}`;
 }
+function currentUser(){ return sessionStorage.getItem('psych_user') || '[Unknown]'; }
 
-/* ----- Login / Session ----- */
+/* Login / Session */
 function showLogin(){ loginWrap.style.display='flex'; app.style.display='none'; loginWrap.setAttribute('aria-hidden','false'); loginUser.focus(); }
 function showAppFor(user){
   loginWrap.style.display='none'; app.style.display='block'; loginWrap.setAttribute('aria-hidden','true');
@@ -256,19 +289,16 @@ function showAppFor(user){
   btnGAD.style.display = access.gad ? 'inline-block' : 'none';
   btnPHQ.style.display = access.phq ? 'inline-block' : 'none';
   btnDoctor.style.display = access.doc ? 'inline-block' : 'none';
-  // default tab
   if(access.gad) selectTab('gad');
   else if(access.phq) selectTab('phq');
   else selectTab('doc');
   autofillProviderFor(user);
-  // show clock state persisted for this user (if any)
-  const keyIn = `clockIn_${user}`;
-  const keyOut = `clockOut_${user}`;
-  const prevIn = sessionStorage.getItem(keyIn);
-  const prevOut = sessionStorage.getItem(keyOut);
-  if(prevIn && !prevOut){ clockedIn = true; clockStatus.textContent = `Clocked in at ${new Date(prevIn).toLocaleString()}`; }
-  else if(prevOut){ clockedIn = false; clockStatus.textContent = `Clocked out at ${new Date(prevOut).toLocaleString()}`; }
-  else { clockedIn = false; clockStatus.textContent = 'Not clocked in'; }
+  // load per-user clock state
+  const keyIn = `clockIn_${user}`, keyOut = `clockOut_${user}`;
+  const prevIn = sessionStorage.getItem(keyIn), prevOut = sessionStorage.getItem(keyOut);
+  if(prevIn && !prevOut){ clockedIn=true; clockStatus.textContent = `Clocked in as ${sessionStorage.getItem(keyIn + '_name') || '[user]'} at ${new Date(prevIn).toLocaleString()}`; }
+  else if(prevOut){ clockedIn=false; clockStatus.textContent = `Last clock: ${sessionStorage.getItem(keyOut + '_name') || '[user]'} at ${new Date(prevOut).toLocaleString()}`; }
+  else { clockedIn=false; clockStatus.textContent = 'Not clocked in'; }
 }
 
 function authenticate(){
@@ -320,13 +350,9 @@ loginBtn.addEventListener('click', authenticate);
 forgotLink.addEventListener('click', forgotFlow);
 loginPass.addEventListener('keydown', e=>{ if(e.key==='Enter') authenticate(); });
 loginUser.addEventListener('keydown', e=>{ if(e.key==='Enter') loginPass.focus(); });
+logoutBtn.addEventListener('click', ()=>{ sessionStorage.removeItem('psych_user'); showLogin(); });
 
-logoutBtn.addEventListener('click', ()=>{
-  sessionStorage.removeItem('psych_user');
-  showLogin();
-});
-
-/* ----- Tabs ----- */
+/* Tabs */
 function selectTab(which){
   btnGAD.classList.remove('active'); btnPHQ.classList.remove('active'); btnDoctor.classList.remove('active');
   gadCard.style.display='none'; phqCard.style.display='none'; doctorCard.style.display='none';
@@ -338,86 +364,39 @@ btnGAD.addEventListener('click', ()=> selectTab('gad'));
 btnPHQ.addEventListener('click', ()=> selectTab('phq'));
 btnDoctor.addEventListener('click', ()=> selectTab('doc'));
 
-/* ----- Severity mapping ----- */
-function gadScoreToSeverity(score){
-  const s = Number(score);
-  if (isNaN(s)) return null;
-  if (s >= 0 && s <= 4) return "Minimal/None";
-  if (s >= 5 && s <= 9) return "Mild";
-  if (s >= 10 && s <= 14) return "Moderate";
-  if (s >= 15 && s <= 21) return "Severe";
-  return null;
-}
-function phqScoreToSeverity(score){
-  const s = Number(score);
-  if (isNaN(s)) return null;
-  if (s >= 0 && s <= 4) return "Minimal/None";
-  if (s >= 5 && s <= 9) return "Mild";
-  if (s >= 10 && s <= 14) return "Moderate";
-  if (s >= 15 && s <= 19) return "Moderately Severe";
-  if (s >= 20 && s <= 27) return "Severe";
-  return null;
-}
+/* Severity mapping hooks */
+function gadScoreToSeverity(score){ const s = Number(score); if (isNaN(s)) return null; if (s<=4) return "Minimal/None"; if(s<=9) return "Mild"; if(s<=14) return "Moderate"; return "Severe"; }
+function phqScoreToSeverity(score){ const s = Number(score); if (isNaN(s)) return null; if (s<=4) return "Minimal/None"; if(s<=9) return "Mild"; if(s<=14) return "Moderate"; if(s<=19) return "Moderately Severe"; return "Severe"; }
+const gadScoreInput = document.getElementById('gad_score'), gadSeveritySelect = document.getElementById('gad_severity');
+if(gadScoreInput) gadScoreInput.addEventListener('input', ()=>{ const sev = gadScoreToSeverity(gadScoreInput.value); if(sev!==null) for(let i=0;i<gadSeveritySelect.options.length;i++) if(gadSeveritySelect.options[i].value===sev){ gadSeveritySelect.selectedIndex=i; break; } });
+const phqScoreInput = document.getElementById('phq_score'), phqSeveritySelect = document.getElementById('phq_severity');
+if(phqScoreInput) phqScoreInput.addEventListener('input', ()=>{ const sev = phqScoreToSeverity(phqScoreInput.value); if(sev!==null) for(let i=0;i<phqSeveritySelect.options.length;i++) if(phqSeveritySelect.options[i].value===sev){ phqSeveritySelect.selectedIndex=i; break; } });
 
-/* Hook score inputs */
-const gadScoreInput = document.getElementById('gad_score');
-const gadSeveritySelect = document.getElementById('gad_severity');
-if(gadScoreInput) gadScoreInput.addEventListener('input', ()=>{
-  const sev = gadScoreToSeverity(gadScoreInput.value);
-  if(sev !== null){
-    for(let i=0;i<gadSeveritySelect.options.length;i++){
-      if(gadSeveritySelect.options[i].value === sev){ gadSeveritySelect.selectedIndex = i; break; }
-    }
-  }
-});
-const phqScoreInput = document.getElementById('phq_score');
-const phqSeveritySelect = document.getElementById('phq_severity');
-if(phqScoreInput) phqScoreInput.addEventListener('input', ()=>{
-  const sev = phqScoreToSeverity(phqScoreInput.value);
-  if(sev !== null){
-    for(let i=0;i<phqSeveritySelect.options.length;i++){
-      if(phqSeveritySelect.options[i].value === sev){ phqSeveritySelect.selectedIndex = i; break; }
-    }
-  }
-});
-
-/* ----- PDF helper (adds generator and timestamp) ----- */
+/* PDF helper & metadata */
 function writeNoteToPDF(doc, noteText, filenamePrefix){
   doc.setFontSize(12);
-  let y = 12;
-  const lineHeight = 7;
-  const leftMargin = 12;
+  let y = 12, lineHeight = 7, left = 12;
   noteText.split("\n").forEach(line=>{
     const wrapped = doc.splitTextToSize(line, 180);
-    doc.text(wrapped, leftMargin, y);
+    doc.text(wrapped, left, y);
     y += lineHeight * wrapped.length;
-    if(y > 280){ doc.addPage(); y = 12; }
+    if(y>280){ doc.addPage(); y=12; }
   });
   const safe = filenamePrefix.replace(/[^a-z0-9_\-]/gi,'_').slice(0,40) || 'note';
   doc.save(`${safe}.pdf`);
 }
-
-/* Helper to get current logged user */
-function currentUser(){
-  return sessionStorage.getItem('psych_user') || '[Unknown]';
-}
-
-/* Append generated info (who, time, clock state) to note */
 function generateMetaString(){
   const user = currentUser();
   const ts = new Date().toLocaleString();
-  // Include current user's clock in/out state for context
-  const keyIn = `clockIn_${user}`;
-  const keyOut = `clockOut_${user}`;
-  const inTime = sessionStorage.getItem(keyIn);
-  const outTime = sessionStorage.getItem(keyOut);
+  const keyIn = `clockIn_${user}`, keyOut = `clockOut_${user}`;
+  const inTime = sessionStorage.getItem(keyIn), outTime = sessionStorage.getItem(keyOut);
   let clockInfo = 'No clock record';
-  if(inTime && !outTime) clockInfo = `Clocked in since ${new Date(inTime).toLocaleString()}`;
-  else if(inTime && outTime) clockInfo = `Last clock session: in ${new Date(inTime).toLocaleString()} — out ${new Date(outTime).toLocaleString()}`;
+  if(inTime && !outTime) clockInfo = `Clocked in as ${sessionStorage.getItem(keyIn+'_name')||'[user]'} since ${new Date(inTime).toLocaleString()}`;
+  else if(inTime && outTime) clockInfo = `Last clock session: ${sessionStorage.getItem(keyIn+'_name')||'[user]'} ${new Date(inTime).toLocaleString()} — out ${new Date(outTime).toLocaleString()}`;
   return `Generated by: ${user}\nGenerated at: ${ts}\n${clockInfo}`;
 }
 
-/* ----- GAD generate/preview ----- */
+/* GAD generate/preview */
 document.getElementById('gad_generate').addEventListener('click', ()=>{
   const name = document.getElementById('gad_patientName').value || "[Name/ID]";
   const age = document.getElementById('gad_age').value || "[Age]";
@@ -427,34 +406,9 @@ document.getElementById('gad_generate').addEventListener('click', ()=>{
   const provider = document.getElementById('gad_provider').value || "Dr. [Name], MD";
   const report = document.getElementById('gad_report').value || "PATIENT REPORT GOES HERE";
   const plan = document.getElementById('gad_plan').value || "PLAN GOES HERE";
-
   const evaluation = `GAD-7 administered. Total score: ${score}.\nTHIS SCORE INDICATES [${severity.toUpperCase()}] ANXIETY`;
-
-  let note = `
-Clinical Tools — GAD-7 Note
-
-Patient: ${name}
-Age: ${age}
-Date: ${date}
-Provider: ${provider}
-
-Patient Report:
-${report}
-
-Evaluation:
-${evaluation}
-
-Plan:
-${plan}
-  `;
-
-  // add meta string
-  note += `\n\n${generateMetaString()}\n`;
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  writeNoteToPDF(doc, note, `GAD7_${name}_${date}`);
-  document.getElementById('gad_output').textContent = note;
+  let note = `Clinical Tools — GAD-7 Note\n\nPatient: ${name}\nAge: ${age}\nDate: ${date}\nProvider: ${provider}\n\nPatient Report:\n${report}\n\nEvaluation:\n${evaluation}\n\nPlan:\n${plan}\n\n${generateMetaString()}\n`;
+  const { jsPDF } = window.jspdf; const doc = new jsPDF(); writeNoteToPDF(doc, note, `GAD7_${name}_${date}`); document.getElementById('gad_output').textContent = note;
 });
 document.getElementById('gad_preview').addEventListener('click', ()=>{
   const name = document.getElementById('gad_patientName').value || "[Name/ID]";
@@ -465,31 +419,12 @@ document.getElementById('gad_preview').addEventListener('click', ()=>{
   const provider = document.getElementById('gad_provider').value || "Dr. [Name], MD";
   const report = document.getElementById('gad_report').value || "PATIENT REPORT GOES HERE";
   const plan = document.getElementById('gad_plan').value || "PLAN GOES HERE";
-
   const evaluation = `GAD-7 administered. Total score: ${score}.\nTHIS SCORE INDICATES [${severity.toUpperCase()}] ANXIETY`;
-
-  let note = `
-Clinical Tools — GAD-7 Note
-
-Patient: ${name}
-Age: ${age}
-Date: ${date}
-Provider: ${provider}
-
-Patient Report:
-${report}
-
-Evaluation:
-${evaluation}
-
-Plan:
-${plan}
-  `;
-  note += `\n\n${generateMetaString()}\n`;
+  let note = `Clinical Tools — GAD-7 Note\n\nPatient: ${name}\nAge: ${age}\nDate: ${date}\nProvider: ${provider}\n\nPatient Report:\n${report}\n\nEvaluation:\n${evaluation}\n\nPlan:\n${plan}\n\n${generateMetaString()}\n`;
   document.getElementById('gad_output').textContent = note;
 });
 
-/* ----- PHQ generate/preview ----- */
+/* PHQ generate/preview */
 document.getElementById('phq_generate').addEventListener('click', ()=>{
   const name = document.getElementById('phq_patientName').value || "[Name/ID]";
   const age = document.getElementById('phq_age').value || "[Age]";
@@ -499,33 +434,9 @@ document.getElementById('phq_generate').addEventListener('click', ()=>{
   const provider = document.getElementById('phq_provider').value || "Dr. [Name], MD";
   const report = document.getElementById('phq_report').value || "PATIENT REPORT GOES HERE";
   const plan = document.getElementById('phq_plan').value || "PLAN GOES HERE";
-
   const evaluation = `PHQ-9-A administered. Total score: ${score}.\nTHIS SCORE INDICATES [${severity.toUpperCase()}] DEPRESSION`;
-
-  let note = `
-Clinical Tools — PHQ-A Note
-
-Patient: ${name}
-Age: ${age}
-Date: ${date}
-Provider: ${provider}
-
-Patient Report:
-${report}
-
-Evaluation:
-${evaluation}
-
-Plan:
-${plan}
-  `;
-
-  note += `\n\n${generateMetaString()}\n`;
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  writeNoteToPDF(doc, note, `PHQ-A_${name}_${date}`);
-  document.getElementById('phq_output').textContent = note;
+  let note = `Clinical Tools — PHQ-A Note\n\nPatient: ${name}\nAge: ${age}\nDate: ${date}\nProvider: ${provider}\n\nPatient Report:\n${report}\n\nEvaluation:\n${evaluation}\n\nPlan:\n${plan}\n\n${generateMetaString()}\n`;
+  const { jsPDF } = window.jspdf; const doc = new jsPDF(); writeNoteToPDF(doc, note, `PHQ-A_${name}_${date}`); document.getElementById('phq_output').textContent = note;
 });
 document.getElementById('phq_preview').addEventListener('click', ()=>{
   const name = document.getElementById('phq_patientName').value || "[Name/ID]";
@@ -536,31 +447,12 @@ document.getElementById('phq_preview').addEventListener('click', ()=>{
   const provider = document.getElementById('phq_provider').value || "Dr. [Name], MD";
   const report = document.getElementById('phq_report').value || "PATIENT REPORT GOES HERE";
   const plan = document.getElementById('phq_plan').value || "PLAN GOES HERE";
-
   const evaluation = `PHQ-9-A administered. Total score: ${score}.\nTHIS SCORE INDICATES [${severity.toUpperCase()}] DEPRESSION`;
-
-  let note = `
-Clinical Tools — PHQ-A Note
-
-Patient: ${name}
-Age: ${age}
-Date: ${date}
-Provider: ${provider}
-
-Patient Report:
-${report}
-
-Evaluation:
-${evaluation}
-
-Plan:
-${plan}
-  `;
-  note += `\n\n${generateMetaString()}\n`;
+  let note = `Clinical Tools — PHQ-A Note\n\nPatient: ${name}\nAge: ${age}\nDate: ${date}\nProvider: ${provider}\n\nPatient Report:\n${report}\n\nEvaluation:\n${evaluation}\n\nPlan:\n${plan}\n\n${generateMetaString()}\n`;
   document.getElementById('phq_output').textContent = note;
 });
 
-/* ----- Doctor Note generate/preview ----- */
+/* Doctor generate/preview */
 document.getElementById('doc_generate').addEventListener('click', ()=>{
   const name = document.getElementById('doc_patientName').value || "[Name]";
   const age = document.getElementById('doc_age').value || "[Age]";
@@ -571,15 +463,8 @@ document.getElementById('doc_generate').addEventListener('click', ()=>{
   const start = formatMMDDYYYY(document.getElementById('doc_start').value);
   const end = formatMMDDYYYY(document.getElementById('doc_end').value);
   const ret = formatMMDDYYYY(document.getElementById('doc_return').value || document.getElementById('doc_end').value);
-
-  let note = `I, ${provider}, am writing this note to inform you that I have seen ${name} in my hospital on the day of ${visit}.\n\nTesting revealed ${name} has ${illness} and as ${name}'s healthcare provider I am recommending for ${name} to be excused from SCHOOL/WORK from the dates of ${start} - ${end} allowing ${name} to return on ${ret}.\n\nIf you require any additional information do not hesitate to contact me, thank you for understanding.\n\nSincerely,\n${provider}`;
-
-  note += `\n\n${generateMetaString()}\n`;
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  writeNoteToPDF(doc, note, `DoctorNote_${name}_${visit}`);
-  document.getElementById('doc_output').textContent = note;
+  let note = `I, ${provider}, am writing this note to inform you that I have seen ${name} in my hospital on the day of ${visit}.\n\nTesting revealed ${name} has ${illness} and as ${name}'s healthcare provider I am recommending for ${name} to be excused from SCHOOL/WORK from the dates of ${start} - ${end} allowing ${name} to return on ${ret}.\n\nIf you require any additional information do not hesitate to contact me, thank you for understanding.\n\nSincerely,\n${provider}\n\n${generateMetaString()}\n`;
+  const { jsPDF } = window.jspdf; const doc = new jsPDF(); writeNoteToPDF(doc, note, `DoctorNote_${name}_${visit}`); document.getElementById('doc_output').textContent = note;
 });
 document.getElementById('doc_preview').addEventListener('click', ()=>{
   const name = document.getElementById('doc_patientName').value || "[Name]";
@@ -590,44 +475,51 @@ document.getElementById('doc_preview').addEventListener('click', ()=>{
   const start = formatMMDDYYYY(document.getElementById('doc_start').value);
   const end = formatMMDDYYYY(document.getElementById('doc_end').value);
   const ret = formatMMDDYYYY(document.getElementById('doc_return').value || document.getElementById('doc_end').value);
-
-  let note = `I, ${provider}, am writing this note to inform you that I have seen ${name} in my hospital on the day of ${visit}.\n\nTesting revealed ${name} has ${illness} and as ${name}'s healthcare provider I am recommending for ${name} to be excused from SCHOOL/WORK from the dates of ${start} - ${end} allowing ${name} to return on ${ret}.\n\nIf you require any additional information do not hesitate to contact me, thank you for understanding.\n\nSincerely,\n${provider}`;
-
-  note += `\n\n${generateMetaString()}\n`;
+  let note = `I, ${provider}, am writing this note to inform you that I have seen ${name} in my hospital on the day of ${visit}.\n\nTesting revealed ${name} has ${illness} and as ${name}'s healthcare provider I am recommending for ${name} to be excused from SCHOOL/WORK from the dates of ${start} - ${end} allowing ${name} to return on ${ret}.\n\nIf you require any additional information do not hesitate to contact me, thank you for understanding.\n\nSincerely,\n${provider}\n\n${generateMetaString()}\n`;
   document.getElementById('doc_output').textContent = note;
 });
 
-/* ----- Clock In / Clock Out (per-user) ----- */
-clockInBtn.addEventListener('click', ()=>{
+/* Clock modal behavior (name entry before confirming) */
+function openModal(modal){ modal.style.display='flex'; modal.setAttribute('aria-hidden','false'); const input = modal.querySelector('input'); if(input){ input.value=''; setTimeout(()=>input.focus(),50); } }
+function closeModal(modal){ modal.style.display='none'; modal.setAttribute('aria-hidden','true'); }
+
+clockInBtn.addEventListener('click', ()=> openModal(clockInModal));
+clockOutBtn.addEventListener('click', ()=> openModal(clockOutModal));
+clockInCancel.addEventListener('click', ()=> closeModal(clockInModal));
+clockOutCancel.addEventListener('click', ()=> closeModal(clockOutModal));
+
+clockInConfirm.addEventListener('click', ()=>{
+  const name = (clockInName.value||'').trim();
   const user = currentUser();
-  if(!user || user==='[Unknown]'){ alert('Please login first'); return; }
+  if(!user || user==='[Unknown]'){ alert('Please login first'); closeModal(clockInModal); return; }
+  if(!name){ alert('Enter a name to clock in'); clockInName.focus(); return; }
   const now = new Date();
   sessionStorage.setItem(`clockIn_${user}`, now.toISOString());
-  // clear any previous out time for a fresh session
+  sessionStorage.setItem(`clockIn_${user}_name`, name);
   sessionStorage.removeItem(`clockOut_${user}`);
   clockedIn = true;
-  clockStatus.textContent = `Clocked in at ${now.toLocaleString()}`;
+  clockStatus.textContent = `Clocked in as ${name} at ${now.toLocaleString()}`;
+  closeModal(clockInModal);
 });
 
-clockOutBtn.addEventListener('click', ()=>{
+clockOutConfirm.addEventListener('click', ()=>{
+  const name = (clockOutName.value||'').trim();
   const user = currentUser();
-  if(!user || user==='[Unknown]'){ alert('Please login first'); return; }
+  if(!user || user==='[Unknown]'){ alert('Please login first'); closeModal(clockOutModal); return; }
+  if(!name){ alert('Enter a name to clock out'); clockOutName.focus(); return; }
   const keyIn = `clockIn_${user}`;
   const inTime = sessionStorage.getItem(keyIn);
-  if(!inTime){ alert('You must clock in first'); return; }
+  if(!inTime){ alert('No active clock-in found for you.'); closeModal(clockOutModal); return; }
   const now = new Date();
   sessionStorage.setItem(`clockOut_${user}`, now.toISOString());
+  sessionStorage.setItem(`clockOut_${user}_name`, name);
   clockedIn = false;
-  clockStatus.textContent = `Clocked out at ${now.toLocaleString()}`;
+  clockStatus.textContent = `Clocked out as ${name} at ${now.toLocaleString()}`;
+  closeModal(clockOutModal);
 });
 
-/* ----- Initialize on page load ----- */
-function checkSession(){
-  const u = sessionStorage.getItem('psych_user');
-  if(u && ACCOUNTS[u]) showAppFor(u);
-  else showLogin();
-}
-// run
+/* Initialize on page load */
+function checkSession(){ const u = sessionStorage.getItem('psych_user'); if(u && ACCOUNTS[u]) showAppFor(u); else showLogin(); }
 checkSession();
 
 </script>
