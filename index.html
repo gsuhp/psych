@@ -3,17 +3,14 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Psych — Clinical Tools (Protected)</title>
+<title>Clinical Tools For Education</title>
 
-<!-- jsPDF -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-<!-- Comfortaa for page display -->
-<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&display=swap" rel="stylesheet">
+<!-- jsPDF (UMD) -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
 <style>
   :root{--bg:#f7f8fb;--card:#fff;--muted:#6b7280;--accent:#1f2937}
-  html,body{height:100%;margin:0;font-family:"Comfortaa",Arial,sans-serif;background:var(--bg);color:#111}
+  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:#111}
   .wrap{max-width:980px;margin:18px auto;padding:18px;}
   .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
   .brand{font-size:20px;font-weight:700;color:var(--accent)}
@@ -35,483 +32,143 @@
   button.ghost{background:transparent;border:1px solid #d1d5db;padding:10px 14px;border-radius:8px;cursor:pointer}
   .logout{background:#b33;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
   pre#output{background:#fafafa;padding:12px;border-radius:8px;border:1px solid #eee;margin-top:14px;white-space:pre-wrap}
-  .login-wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);z-index:999}
-  .login-card{width:360px;background:var(--card);padding:20px;border-radius:12px;box-shadow:0 12px 40px rgba(2,6,23,0.2)}
-  .login-card h2{text-align:center;margin:0 0 12px;font-size:20px}
+  .login-wrap, .disclaimer-wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);z-index:999}
+  .login-card, .disclaimer-card{width:360px;background:var(--card);padding:20px;border-radius:12px;box-shadow:0 12px 40px rgba(2,6,23,0.2)}
+  .login-card h2,.disclaimer-card h2{text-align:center;margin:0 0 12px;font-size:18px}
   .meta{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
   @media (max-width:760px){ .row{flex-direction:column} .col-1{flex:auto} }
   a.linkish{color:var(--accent);text-decoration:underline;cursor:pointer;font-weight:700}
 </style>
 </head>
 <body>
-  <!-- Login overlay -->
-  <div id="login" class="login-wrap" aria-hidden="false">
-    <div class="login-card" role="dialog" aria-label="Site login">
-      <h2>Protected Access</h2>
 
-      <label for="loginUser">Username</label>
-      <input id="loginUser" type="text" autocomplete="username" placeholder="Enter username">
+<!-- DISCLAIMER -->
+<div id="disclaimer" class="disclaimer-wrap" aria-hidden="false">
+  <div class="disclaimer-card" role="dialog" aria-label="Disclaimer">
+    <h2>Disclaimer — Educational Use Only</h2>
+    <p style="margin:8px 0 12px">This site is for educational / roleplay purposes only. Do not enter real patient-identifiable information (PHI). No data is sent to any server — authentication and storage are client-side only.</p>
+    <div style="display:flex;gap:8px">
+      <button id="acceptDisclaimer" class="primary" style="flex:1">I Understand — Continue</button>
+    </div>
+  </div>
+</div>
 
-      <label for="loginPass" style="margin-top:10px">Password</label>
-      <input id="loginPass" type="password" autocomplete="current-password" placeholder="Enter password">
+<!-- LOGIN (hidden until disclaimer accepted) -->
+<div id="login" class="login-wrap" aria-hidden="true" style="display:none">
+  <div class="login-card" role="dialog" aria-label="Site login">
+    <h2>Protected Access</h2>
+    <label for="loginUser">Username</label>
+    <input id="loginUser" type="text" autocomplete="username" placeholder="Enter username">
+    <label for="loginPass" style="margin-top:10px">Password</label>
+    <input id="loginPass" type="password" autocomplete="current-password" placeholder="Enter password">
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button id="loginBtn" class="primary" style="flex:1">Sign in</button>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:10px;align-items:center">
+      <div class="meta">Client-side authentication only.</div>
+      <a id="forgotLink" class="linkish" aria-label="Forgot password">Forgot?</a>
+    </div>
+  </div>
+</div>
 
-      <div style="display:flex;gap:8px;margin-top:12px;">
-        <button id="loginBtn" class="primary" style="flex:1">Sign in</button>
+<!-- APP -->
+<div id="app" class="wrap" style="display:none">
+  <div class="topbar">
+    <div class="brand">Clinical Tools For Education</div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="nav" role="navigation" aria-label="Form switch">
+        <button id="btnGAD" class="active">GAD-7</button>
+        <button id="btnPHQ">PHQ-A</button>
+        <button id="btnDoctor">Doctor's Note</button>
       </div>
-
-      <div style="display:flex;justify-content:space-between;margin-top:10px;align-items:center">
-        <div class="meta">Client-side authentication only.</div>
-        <a id="forgotLink" class="linkish" aria-label="Forgot password">Forgot?</a>
-      </div>
+      <button id="logout" class="logout">Log out</button>
+      <!-- Clock -->
+      <button id="clockInBtn" class="ghost">Clock In</button>
+      <button id="clockOutBtn" class="ghost">Clock Out</button>
+      <div id="clockStatus" class="small" style="margin-left:6px">Not clocked in</div>
     </div>
   </div>
 
-  <!-- Main App -->
-  <div id="app" class="wrap" style="display:none">
-    <div class="topbar">
-      <div class="brand">Psych — Clinical Tools</div>
-      <div style="display:flex;align-items:center;gap:12px">
-        <div class="nav" role="navigation" aria-label="Form switch">
-          <button id="btnGAD" class="active">GAD-7</button>
-          <button id="btnPHQ">PHQ-A</button>
-        </div>
-        <button id="logout" class="logout">Log out</button>
+  <!-- GAD -->
+  <div id="gadCard" class="card" aria-hidden="false">
+    <h3 style="margin:0 0 6px">GAD-7 Note Builder</h3>
+    <label>Patient Name:</label>
+    <input type="text" id="gad_patientName" placeholder="Enter patient name">
+    <div class="row" style="margin-top:6px">
+      <div class="col-1">
+        <label>Age:</label>
+        <input type="number" id="gad_age" min="0" max="120" placeholder="Age">
+      </div>
+      <div class="col-flex">
+        <label>Date:</label>
+        <input type="date" id="gad_date">
       </div>
     </div>
-
-    <!-- GAD -->
-    <div id="gadCard" class="card" aria-hidden="false">
-      <h3 style="margin:0 0 6px">GAD-7 Note Builder</h3>
-      <label>Patient Name:</label>
-      <input type="text" id="gad_patientName" placeholder="Enter patient name">
-
-      <div class="row" style="margin-top:6px">
-        <div class="col-1">
-          <label>Age:</label>
-          <input type="number" id="gad_age" min="0" max="120" placeholder="Age">
-        </div>
-        <div class="col-flex">
-          <label>Date:</label>
-          <input type="date" id="gad_date">
-        </div>
-      </div>
-
-      <label>GAD-7 Score:</label>
-      <input type="number" id="gad_score" min="0" max="21" placeholder="0–21">
-
-      <label>Severity: <span class="small">(auto-updates from score — override okay)</span></label>
-      <select id="gad_severity">
-        <option value="Minimal/None">Minimal/None (0–4)</option>
-        <option value="Mild">Mild (5–9)</option>
-        <option value="Moderate">Moderate (10–14)</option>
-        <option value="Severe">Severe (15–21)</option>
-      </select>
-
-      <label>Provider (Name & Credentials):</label>
-      <input type="text" id="gad_provider" placeholder="Enter provider name & credentials">
-
-      <label>Patient Report:</label>
-      <textarea id="gad_report" placeholder="Enter patient report..."></textarea>
-
-      <label>Plan:</label>
-      <textarea id="gad_plan" placeholder="Enter plan..."></textarea>
-
-      <div class="controls" style="margin-top:12px">
-        <button id="gad_generate" class="primary">Generate PDF</button>
-        <button id="gad_preview" class="ghost">Preview Text</button>
-      </div>
-
-      <pre id="gad_output"></pre>
+    <label>GAD-7 Score:</label>
+    <input type="number" id="gad_score" min="0" max="21" placeholder="0–21">
+    <label>Severity: <span class="small">(auto-updates from score — override okay)</span></label>
+    <select id="gad_severity">
+      <option value="Minimal/None">Minimal/None (0–4)</option>
+      <option value="Mild">Mild (5–9)</option>
+      <option value="Moderate">Moderate (10–14)</option>
+      <option value="Severe">Severe (15–21)</option>
+    </select>
+    <label>Provider (Name & Credentials):</label>
+    <input type="text" id="gad_provider" placeholder="Enter provider name & credentials">
+    <label>Patient Report:</label>
+    <textarea id="gad_report" placeholder="Enter patient report..."></textarea>
+    <label>Plan:</label>
+    <textarea id="gad_plan" placeholder="Enter plan..."></textarea>
+    <div class="controls" style="margin-top:12px">
+      <button id="gad_generate" class="primary">Generate PDF</button>
+      <button id="gad_preview" class="ghost">Preview Text</button>
     </div>
-
-    <!-- PHQ -->
-    <div id="phqCard" class="card" style="margin-top:18px;display:none" aria-hidden="true">
-      <h3 style="margin:0 0 6px">PHQ-A Note Builder</h3>
-
-      <label>Patient Name:</label>
-      <input type="text" id="phq_patientName" placeholder="Enter patient name">
-
-      <div class="row" style="margin-top:6px">
-        <div class="col-1">
-          <label>Age:</label>
-          <input type="number" id="phq_age" min="0" max="120" placeholder="Age">
-        </div>
-        <div class="col-flex">
-          <label>Date:</label>
-          <input type="date" id="phq_date">
-        </div>
-      </div>
-
-      <label>PHQ-9-A Score:</label>
-      <input type="number" id="phq_score" min="0" max="27" placeholder="0–27">
-
-      <label>Severity: <span class="small">(auto-updates from score — override okay)</span></label>
-      <select id="phq_severity">
-        <option value="Minimal/None">Minimal/None (0–4)</option>
-        <option value="Mild">Mild (5–9)</option>
-        <option value="Moderate">Moderate (10–14)</option>
-        <option value="Moderately Severe">Moderately Severe (15–19)</option>
-        <option value="Severe">Severe (20–27)</option>
-      </select>
-
-      <label>Provider (Name & Credentials):</label>
-      <input type="text" id="phq_provider" placeholder="Enter provider name & credentials">
-
-      <label>Patient Report:</label>
-      <textarea id="phq_report" placeholder="Enter patient report..."></textarea>
-
-      <label>Plan:</label>
-      <textarea id="phq_plan" placeholder="Enter plan..."></textarea>
-
-      <div class="controls" style="margin-top:12px">
-        <button id="phq_generate" class="primary">Generate PDF</button>
-        <button id="phq_preview" class="ghost">Preview Text</button>
-      </div>
-
-      <pre id="phq_output"></pre>
-    </div>
-
+    <pre id="gad_output"></pre>
   </div>
 
-<script>
-/* -----------------------------
-   CLIENT-SIDE AUTH (NOT SECURE)
-   -----------------------------
-   Accounts (checked client-side only):
-   - nmccgsuh : 15358   => provider auto-fill: "Dr. Nicolas McCarthy MD PhD FACS"
-   - mjohn    : mj15358 => provider auto-fill: "Dr. Martha Johnson DO"
-   - psych    : psychgsuh => provider must be entered manually
-*/
-const ACCOUNTS = {
-  'nmccgsuh': { pw: '15358', provider: 'Dr. Nicolas McCarthy MD PhD FACS' },
-  'mjohn':    { pw: 'mj15358', provider: 'Dr. Martha Johnson DO' },
-  'psych':    { pw: 'psychgsuh', provider: null } // null => manual entry required
-};
+  <!-- PHQ -->
+  <div id="phqCard" class="card" style="margin-top:18px;display:none" aria-hidden="true">
+    <h3 style="margin:0 0 6px">PHQ-A Note Builder</h3>
+    <label>Patient Name:</label>
+    <input type="text" id="phq_patientName" placeholder="Enter patient name">
+    <div class="row" style="margin-top:6px">
+      <div class="col-1">
+        <label>Age:</label>
+        <input type="number" id="phq_age" min="0" max="120" placeholder="Age">
+      </div>
+      <div class="col-flex">
+        <label>Date:</label>
+        <input type="date" id="phq_date">
+      </div>
+    </div>
+    <label>PHQ-9-A Score:</label>
+    <input type="number" id="phq_score" min="0" max="27" placeholder="0–27">
+    <label>Severity: <span class="small">(auto-updates from score — override okay)</span></label>
+    <select id="phq_severity">
+      <option value="Minimal/None">Minimal/None (0–4)</option>
+      <option value="Mild">Mild (5–9)</option>
+      <option value="Moderate">Moderate (10–14)</option>
+      <option value="Moderately Severe">Moderately Severe (15–19)</option>
+      <option value="Severe">Severe (20–27)</option>
+    </select>
+    <label>Provider (Name & Credentials):</label>
+    <input type="text" id="phq_provider" placeholder="Enter provider name & credentials">
+    <label>Patient Report:</label>
+    <textarea id="phq_report" placeholder="Enter patient report..."></textarea>
+    <label>Plan:</label>
+    <textarea id="phq_plan" placeholder="Enter plan..."></textarea>
+    <div class="controls" style="margin-top:12px">
+      <button id="phq_generate" class="primary">Generate PDF</button>
+      <button id="phq_preview" class="ghost">Preview Text</button>
+    </div>
+    <pre id="phq_output"></pre>
+  </div>
 
-const FORGOT_CODE = 'gsuhpsychteam'; // code for Forgot? flow (do not show anywhere)
-
-/* ----- Elements ----- */
-const loginWrap = document.getElementById('login');
-const loginUser = document.getElementById('loginUser');
-const loginPass = document.getElementById('loginPass');
-const loginBtn = document.getElementById('loginBtn');
-const forgotLink = document.getElementById('forgotLink');
-const app = document.getElementById('app');
-const logoutBtn = document.getElementById('logout');
-
-const btnGAD = document.getElementById('btnGAD');
-const btnPHQ = document.getElementById('btnPHQ');
-const gadCard = document.getElementById('gadCard');
-const phqCard = document.getElementById('phqCard');
-
-/* ----- Utility: show/hide ----- */
-function showLogin(){ loginWrap.style.display='flex'; app.style.display='none'; loginWrap.setAttribute('aria-hidden','false'); loginUser.focus(); }
-function showAppFor(user){ loginWrap.style.display='none'; app.style.display='block'; loginWrap.setAttribute('aria-hidden','true'); /* autofill provider based on user below */ }
-
-/* ----- Session check ----- */
-function checkSession(){
-  const u = sessionStorage.getItem('psych_user');
-  if (u && ACCOUNTS[u]) {
-    showAppFor(u);
-    // autofill provider fields depending on account
-    autofillProviderFor(u);
-  } else {
-    showLogin();
-  }
-}
-
-/* ----- Authenticate normal login ----- */
-function authenticate(){
-  const u = (loginUser.value||'').trim();
-  const p = (loginPass.value||'').trim();
-  if (!u) { alert('Enter username'); loginUser.focus(); return; }
-  const acct = ACCOUNTS[u];
-  if (acct && acct.pw === p) {
-    sessionStorage.setItem('psych_user', u);
-    loginUser.value=''; loginPass.value='';
-    showAppFor(u);
-    autofillProviderFor(u);
-  } else {
-    alert('Incorrect username or password.');
-  }
-}
-
-/* ----- Forgot flow: "Code?" prompt ----- */
-async function forgotFlow(){
-  // ask for username first
-  const u = (loginUser.value||'').trim();
-  if (!u) {
-    alert('Enter username first in the login box, then click Forgot?');
-    loginUser.focus();
-    return;
-  }
-  if (!ACCOUNTS[u]) {
-    alert('Unknown username.');
-    return;
-  }
-  const answer = prompt('Code?');
-  if (answer === null) return; // cancelled
-  if (answer === FORGOT_CODE) {
-    // bypass authentication and sign in this user for this tab
-    sessionStorage.setItem('psych_user', u);
-    loginUser.value=''; loginPass.value='';
-    showAppFor(u);
-    autofillProviderFor(u);
-  } else {
-    alert('Incorrect code.');
-  }
-}
-
-/* ----- Autofill provider based on user ----- */
-function autofillProviderFor(username){
-  const mapping = ACCOUNTS[username];
-  // if mapping has provider text, set both provider input fields
-  if (mapping && mapping.provider) {
-    // fill GAD
-    const gprov = document.getElementById('gad_provider');
-    if (gprov) gprov.value = mapping.provider;
-    // fill PHQ
-    const pprov = document.getElementById('phq_provider');
-    if (pprov) pprov.value = mapping.provider;
-  } else {
-    // psych user => leave provider blank (manual entry)
-    const gprov = document.getElementById('gad_provider');
-    if (gprov) gprov.value = '';
-    const pprov = document.getElementById('phq_provider');
-    if (pprov) pprov.value = '';
-  }
-}
-
-/* ----- Event wiring for login ----- */
-loginBtn.addEventListener('click', authenticate);
-forgotLink.addEventListener('click', forgotFlow);
-loginPass.addEventListener('keydown', (e)=>{ if(e.key==='Enter') authenticate(); });
-loginUser.addEventListener('keydown', (e)=>{ if(e.key==='Enter') loginPass.focus(); });
-
-logoutBtn.addEventListener('click', ()=>{
-  sessionStorage.removeItem('psych_user');
-  showLogin();
-});
-
-/* ----- Navigation between tools ----- */
-btnGAD.addEventListener('click', () => {
-  btnGAD.classList.add('active'); btnPHQ.classList.remove('active');
-  gadCard.style.display='block'; phqCard.style.display='none';
-  gadCard.setAttribute('aria-hidden','false'); phqCard.setAttribute('aria-hidden','true');
-});
-btnPHQ.addEventListener('click', () => {
-  btnPHQ.classList.add('active'); btnGAD.classList.remove('active');
-  phqCard.style.display='block'; gadCard.style.display='none';
-  phqCard.setAttribute('aria-hidden','false'); gadCard.setAttribute('aria-hidden','true');
-});
-
-/* ----- Auto-severity utilities ----- */
-function gadScoreToSeverity(score){
-  const s = Number(score);
-  if (isNaN(s)) return null;
-  if (s >= 0 && s <= 4) return "Minimal/None";
-  if (s >= 5 && s <= 9) return "Mild";
-  if (s >= 10 && s <= 14) return "Moderate";
-  if (s >= 15 && s <= 21) return "Severe";
-  return null;
-}
-function phqScoreToSeverity(score){
-  const s = Number(score);
-  if (isNaN(s)) return null;
-  if (s >= 0 && s <= 4) return "Minimal/None";
-  if (s >= 5 && s <= 9) return "Mild";
-  if (s >= 10 && s <= 14) return "Moderate";
-  if (s >= 15 && s <= 19) return "Moderately Severe";
-  if (s >= 20 && s <= 27) return "Severe";
-  return null;
-}
-
-/* ----- Hook score inputs ----- */
-const gadScoreInput = document.getElementById('gad_score');
-const gadSeveritySelect = document.getElementById('gad_severity');
-gadScoreInput.addEventListener('input', ()=>{
-  const sev = gadScoreToSeverity(gadScoreInput.value);
-  if (sev !== null) {
-    for (let i=0;i<gadSeveritySelect.options.length;i++){
-      if (gadSeveritySelect.options[i].value === sev){ gadSeveritySelect.selectedIndex = i; break; }
-    }
-  }
-});
-
-const phqScoreInput = document.getElementById('phq_score');
-const phqSeveritySelect = document.getElementById('phq_severity');
-phqScoreInput.addEventListener('input', ()=>{
-  const sev = phqScoreToSeverity(phqScoreInput.value);
-  if (sev !== null) {
-    for (let i=0;i<phqSeveritySelect.options.length;i++){
-      if (phqSeveritySelect.options[i].value === sev){ phqSeveritySelect.selectedIndex = i; break; }
-    }
-  }
-});
-
-/* ----- PDF helpers ----- */
-function writeNoteToPDF(doc, noteText, filenamePrefix) {
-  // If you want to embed Comfortaa into the PDF, replace BASE64_HERE and uncomment:
-  // doc.addFileToVFS("Comfortaa-Bold.ttf", "BASE64_HERE");
-  // doc.addFont("Comfortaa-Bold.ttf", "Comfortaa", "bold");
-  // doc.setFont("Comfortaa", "bold");
-
-  doc.setFontSize(12);
-  let y = 12;
-  const lineHeight = 7;
-  const leftMargin = 12;
-
-  noteText.split("\n").forEach(line => {
-    const wrapped = doc.splitTextToSize(line, 180);
-    doc.text(wrapped, leftMargin, y);
-    y += lineHeight * wrapped.length;
-    if (y > 280) { doc.addPage(); y = 12; }
-  });
-
-  const safe = filenamePrefix.replace(/[^a-z0-9_\-]/gi,'_').slice(0,40) || 'note';
-  doc.save(`${safe}.pdf`);
-}
-
-/* ----- GAD generate/preview ----- */
-document.getElementById('gad_generate').addEventListener('click', ()=>{
-  const name = document.getElementById('gad_patientName').value || "[Name/ID]";
-  const age = document.getElementById('gad_age').value || "[Age]";
-  const date = document.getElementById('gad_date').value || new Date().toLocaleDateString();
-  const score = document.getElementById('gad_score').value || "[insert score]";
-  const severity = document.getElementById('gad_severity').value;
-  const provider = document.getElementById('gad_provider').value || "Dr. [Name], MD";
-  const report = document.getElementById('gad_report').value || "PATIENT REPORT GOES HERE";
-  const plan = document.getElementById('gad_plan').value || "PLAN GOES HERE";
-
-  const evaluation = `GAD-7 administered. Total score: ${score}.\nTHIS SCORE INDICATES [${severity.toUpperCase()}] ANXIETY`;
-
-  const note = `
-Psychiatry
-
-Patient: ${name}
-Age: ${age}
-Date: ${date}
-Provider: ${provider}
-
-Patient Report:
-${report}
-
-Evaluation:
-${evaluation}
-
-Plan:
-${plan}
-  `;
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  writeNoteToPDF(doc, note, `GAD-7_Note_${name}_${date}`);
-  document.getElementById('gad_output').textContent = note;
-});
-
-document.getElementById('gad_preview').addEventListener('click', ()=>{
-  const name = document.getElementById('gad_patientName').value || "[Name/ID]";
-  const age = document.getElementById('gad_age').value || "[Age]";
-  const date = document.getElementById('gad_date').value || new Date().toLocaleDateString();
-  const score = document.getElementById('gad_score').value || "[insert score]";
-  const severity = document.getElementById('gad_severity').value;
-  const provider = document.getElementById('gad_provider').value || "Dr. [Name], MD";
-  const report = document.getElementById('gad_report').value || "PATIENT REPORT GOES HERE";
-  const plan = document.getElementById('gad_plan').value || "PLAN GOES HERE";
-
-  const evaluation = `GAD-7 administered. Total score: ${score}.\nTHIS SCORE INDICATES [${severity.toUpperCase()}] ANXIETY`;
-
-  const note = `
-Psychiatry
-
-Patient: ${name}
-Age: ${age}
-Date: ${date}
-Provider: ${provider}
-
-Patient Report:
-${report}
-
-Evaluation:
-${evaluation}
-
-Plan:
-${plan}
-  `;
-  document.getElementById('gad_output').textContent = note;
-});
-
-/* ----- PHQ generate/preview ----- */
-document.getElementById('phq_generate').addEventListener('click', ()=>{
-  const name = document.getElementById('phq_patientName').value || "[Name/ID]";
-  const age = document.getElementById('phq_age').value || "[Age]";
-  const date = document.getElementById('phq_date').value || new Date().toLocaleDateString();
-  const score = document.getElementById('phq_score').value || "[insert score]";
-  const severity = document.getElementById('phq_severity').value;
-  const provider = document.getElementById('phq_provider').value || "Dr. [Name], MD";
-  const report = document.getElementById('phq_report').value || "PATIENT REPORT GOES HERE";
-  const plan = document.getElementById('phq_plan').value || "PLAN GOES HERE";
-
-  const evaluation = `PHQ-9-A administered. Total score: ${score}.\nTHIS SCORE INDICATES [${severity.toUpperCase()}] DEPRESSION`;
-
-  const note = `
-Psychiatry
-
-Patient: ${name}
-Age: ${age}
-Date: ${date}
-Provider: ${provider}
-
-Patient Report:
-${report}
-
-Evaluation:
-${evaluation}
-
-Plan:
-${plan}
-  `;
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  writeNoteToPDF(doc, note, `PHQ-A_Note_${name}_${date}`);
-  document.getElementById('phq_output').textContent = note;
-});
-
-document.getElementById('phq_preview').addEventListener('click', ()=>{
-  const name = document.getElementById('phq_patientName').value || "[Name/ID]";
-  const age = document.getElementById('phq_age').value || "[Age]";
-  const date = document.getElementById('phq_date').value || new Date().toLocaleDateString();
-  const score = document.getElementById('phq_score').value || "[insert score]";
-  const severity = document.getElementById('phq_severity').value;
-  const provider = document.getElementById('phq_provider').value || "Dr. [Name], MD";
-  const report = document.getElementById('phq_report').value || "PATIENT REPORT GOES HERE";
-  const plan = document.getElementById('phq_plan').value || "PLAN GOES HERE";
-
-  const evaluation = `PHQ-9-A administered. Total score: ${score}.\nTHIS SCORE INDICATES [${severity.toUpperCase()}] DEPRESSION`;
-
-  const note = `
-Psychiatry
-
-Patient: ${name}
-Age: ${age}
-Date: ${date}
-Provider: ${provider}
-
-Patient Report:
-${report}
-
-Evaluation:
-${evaluation}
-
-Plan:
-${plan}
-  `;
-  document.getElementById('phq_output').textContent = note;
-});
-
-/* ----- initialize ----- */
-checkSession();
-</script>
-</body>
-</html>
+  <!-- Doctor Note -->
+  <div id="doctorCard" class="card" style="margin-top:18px;display:none" aria-hidden="true">
+    <h3 style="margin:0 0 6px">Doctor's Note Builder</h3>
+    <label>Patient Name:</label>
+    <input type="text" id="doc_patientName" placeholder="Enter patient name">
+    <div class="row" style="margin-top:6px">
+      <div class="col-1">
+        <label>Age:</label>
