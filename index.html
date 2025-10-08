@@ -23,7 +23,7 @@
 
 <div id="fullScreenModal">
   <h1 id="modalTitle">Clock In</h1>
-  <input type="text" id="userName" placeholder="Enter Your Name">
+  <input type="text" id="userName" placeholder="Enter Your Badge Number">
   <div>
     <button id="confirmBtn">Confirm</button>
     <button id="cancelBtn">Cancel</button>
@@ -62,7 +62,7 @@ function closeModal(){ modal.style.display = 'none'; }
 confirmBtn.addEventListener('click', ()=>{
   const BADGE NUMBER = userNameInput.value.trim();
   if(!BADGE NUMBER){ alert('Please enter your badge number'); userNameInput.focus(); return; }
-  generatePDF(Badge_Number, actionType);
+  generatePDF(BadgeNumber, actionType);
   closeModal();
 });
 
