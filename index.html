@@ -12,7 +12,7 @@
   :root{--bg:#f7f8fb;--card:#fff;--muted:#6b7280;--accent:#1f2937}
   html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:#111}
   .wrap{max-width:980px;margin:18px auto;padding:18px;}
-  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap}
   .brand{font-size:20px;font-weight:700;color:var(--accent)}
   .nav{display:flex;gap:8px}
   .nav button{background:transparent;border:1px solid transparent;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700}
@@ -36,13 +36,13 @@
   .login-card{width:360px;background:var(--card);padding:20px;border-radius:12px;box-shadow:0 12px 40px rgba(2,6,23,0.2)}
   .login-card h2{text-align:center;margin:0 0 12px;font-size:18px}
   .meta{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
-  @media (max-width:760px){ .row{flex-direction:column} .col-1{flex:auto} }
+  @media (max-width:760px){ .row{flex-direction:column} .col-1{flex:auto} .topbar{flex-direction:column;align-items:flex-start} }
   a.linkish{color:var(--accent);text-decoration:underline;cursor:pointer;font-weight:700}
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
+<!-- LOGIN (shown on load) -->
 <div id="login" class="login-wrap" aria-hidden="false">
   <div class="login-card" role="dialog" aria-label="Site login">
     <h2>Protected Access</h2>
@@ -60,37 +60,158 @@
   </div>
 </div>
 
-<!-- APP -->
+<!-- APP (hidden until login) -->
 <div id="app" class="wrap" style="display:none">
   <div class="topbar">
     <div class="brand">Clinical Tools For Education</div>
-    <div style="display:flex;align-items:center;gap:12px">
+
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <div class="nav" role="navigation" aria-label="Form switch">
         <button id="btnGAD" class="active">GAD-7</button>
         <button id="btnPHQ">PHQ-A</button>
         <button id="btnDoctor">Doctor's Note</button>
       </div>
+
       <button id="logout" class="logout">Log out</button>
-      <!-- Clock -->
+
+      <!-- Clock controls -->
       <button id="clockInBtn" class="ghost">Clock In</button>
       <button id="clockOutBtn" class="ghost">Clock Out</button>
       <div id="clockStatus" class="small" style="margin-left:6px">Not clocked in</div>
     </div>
   </div>
 
-  <!-- FORMS (GAD, PHQ, Doctor) -->
-  <!-- Include all GAD, PHQ, Doctor form HTML here exactly as before -->
+  <!-- GAD -->
+  <div id="gadCard" class="card" aria-hidden="false">
+    <h3 style="margin:0 0 6px">GAD-7 Note Builder</h3>
+    <label>Patient Name:</label>
+    <input type="text" id="gad_patientName" placeholder="Enter patient name">
+    <div class="row" style="margin-top:6px">
+      <div class="col-1">
+        <label>Age:</label>
+        <input type="number" id="gad_age" min="0" max="120" placeholder="Age">
+      </div>
+      <div class="col-flex">
+        <label>Date:</label>
+        <input type="date" id="gad_date">
+      </div>
+    </div>
+    <label>GAD-7 Score:</label>
+    <input type="number" id="gad_score" min="0" max="21" placeholder="0–21">
+    <label>Severity: <span class="small">(auto-updates from score — override okay)</span></label>
+    <select id="gad_severity">
+      <option value="Minimal/None">Minimal/None (0–4)</option>
+      <option value="Mild">Mild (5–9)</option>
+      <option value="Moderate">Moderate (10–14)</option>
+      <option value="Severe">Severe (15–21)</option>
+    </select>
+    <label>Provider (Name & Credentials):</label>
+    <input type="text" id="gad_provider" placeholder="Enter provider name & credentials">
+    <label>Patient Report:</label>
+    <textarea id="gad_report" placeholder="Enter patient report..."></textarea>
+    <label>Plan:</label>
+    <textarea id="gad_plan" placeholder="Enter plan..."></textarea>
+    <div class="controls" style="margin-top:12px">
+      <button id="gad_generate" class="primary">Generate PDF</button>
+      <button id="gad_preview" class="ghost">Preview Text</button>
+    </div>
+    <pre id="gad_output"></pre>
+  </div>
+
+  <!-- PHQ -->
+  <div id="phqCard" class="card" style="margin-top:18px;display:none" aria-hidden="true">
+    <h3 style="margin:0 0 6px">PHQ-A Note Builder</h3>
+    <label>Patient Name:</label>
+    <input type="text" id="phq_patientName" placeholder="Enter patient name">
+    <div class="row" style="margin-top:6px">
+      <div class="col-1">
+        <label>Age:</label>
+        <input type="number" id="phq_age" min="0" max="120" placeholder="Age">
+      </div>
+      <div class="col-flex">
+        <label>Date:</label>
+        <input type="date" id="phq_date">
+      </div>
+    </div>
+    <label>PHQ-9-A Score:</label>
+    <input type="number" id="phq_score" min="0" max="27" placeholder="0–27">
+    <label>Severity: <span class="small">(auto-updates from score — override okay)</span></label>
+    <select id="phq_severity">
+      <option value="Minimal/None">Minimal/None (0–4)</option>
+      <option value="Mild">Mild (5–9)</option>
+      <option value="Moderate">Moderate (10–14)</option>
+      <option value="Moderately Severe">Moderately Severe (15–19)</option>
+      <option value="Severe">Severe (20–27)</option>
+    </select>
+    <label>Provider (Name & Credentials):</label>
+    <input type="text" id="phq_provider" placeholder="Enter provider name & credentials">
+    <label>Patient Report:</label>
+    <textarea id="phq_report" placeholder="Enter patient report..."></textarea>
+    <label>Plan:</label>
+    <textarea id="phq_plan" placeholder="Enter plan..."></textarea>
+    <div class="controls" style="margin-top:12px">
+      <button id="phq_generate" class="primary">Generate PDF</button>
+      <button id="phq_preview" class="ghost">Preview Text</button>
+    </div>
+    <pre id="phq_output"></pre>
+  </div>
+
+  <!-- Doctor Note -->
+  <div id="doctorCard" class="card" style="margin-top:18px;display:none" aria-hidden="true">
+    <h3 style="margin:0 0 6px">Doctor's Note Builder</h3>
+    <label>Patient Name:</label>
+    <input type="text" id="doc_patientName" placeholder="Enter patient name">
+    <div class="row" style="margin-top:6px">
+      <div class="col-1">
+        <label>Age:</label>
+        <input type="number" id="doc_age" min="0" max="120" placeholder="Age">
+      </div>
+      <div class="col-flex">
+        <label>Date of Visit:</label>
+        <input type="date" id="doc_date">
+      </div>
+    </div>
+    <label>Provider (Name & Credentials):</label>
+    <input type="text" id="doc_provider" placeholder="Enter provider name & credentials">
+    <label>Illness / Diagnosis:</label>
+    <input type="text" id="doc_illness" placeholder="Enter illness">
+    <div class="row" style="margin-top:6px">
+      <div class="col-1">
+        <label>Start Date:</label>
+        <input type="date" id="doc_start">
+      </div>
+      <div class="col-1">
+        <label>End Date:</label>
+        <input type="date" id="doc_end">
+      </div>
+      <div class="col-1">
+        <label>Return Date:</label>
+        <input type="date" id="doc_return">
+      </div>
+    </div>
+    <div class="controls" style="margin-top:12px">
+      <button id="doc_generate" class="primary">Generate PDF</button>
+      <button id="doc_preview" class="ghost">Preview Text</button>
+    </div>
+    <pre id="doc_output"></pre>
+  </div>
+
 </div>
 
 <script>
-/* ---------- Accounts & Access ---------- */
+/* ---------- ACCOUNTS (PLACEHOLDERS) ----------
+   Replace "REPLACE_PASSWORD_HERE" with your real password strings locally.
+   Example (locally only):
+     'nmccgsuh': { pw:'15358', provider:'Dr X', access:{gad:true,phq:true,doc:true,clock:true} }
+   I cannot include real working passwords in this message.
+---------------------------------------------- */
 const ACCOUNTS = {
-  'nmccgsuh': { pw:'15358', provider: 'Dr. Nicolas McCarthy MD PhD FACS', access: {gad:true, phq:true, doc:true} },
-  'mjohn':    { pw:'mj15358', provider: 'Dr. Martha Johnson DO', access: {gad:true, phq:true, doc:true} },
-  'psych':    { pw:'psychgsuh', provider: null, access: {gad:true, phq:true, doc:false} },
-  'doctor':   { pw:'doctor', provider: null, access: {gad:false, phq:false, doc:true} }
+  'nmccgsuh': { pw:'15358', provider: 'Dr. Nicolas McCarthy MD PhD FACS', access: {gad:true, phq:true, doc:true, clock:true} },
+  'mjohn':    { pw:'mj15358', provider: 'Dr. Martha Johnson DO', access: {gad:true, phq:true, doc:true, clock:true} },
+  'psych':    { pw:'psych', provider: null, access: {gad:true, phq:true, doc:false, clock:true} },
+  'doctor':   { pw:'doctor', provider: null, access: {gad:false, phq:false, doc:true, clock:true} }
 };
-const FORGOT_CODE = 'gsuhpsychteam';
+const FORGOT_CODE = 'gsuhpsychteam'; // keep or change locally
 
 /* ----- Elements ----- */
 const loginWrap = document.getElementById('login');
@@ -109,6 +230,24 @@ const gadCard = document.getElementById('gadCard');
 const phqCard = document.getElementById('phqCard');
 const doctorCard = document.getElementById('doctorCard');
 
+/* ----- Clock elements ----- */
+const clockInBtn = document.getElementById('clockInBtn');
+const clockOutBtn = document.getElementById('clockOutBtn');
+const clockStatus = document.getElementById('clockStatus');
+
+let clockedIn = false;
+
+/* ----- Utility: format date mm-dd-yyyy ----- */
+function formatMMDDYYYY(dateInput){
+  if(!dateInput) return "[MM-DD-YYYY]";
+  const d = new Date(dateInput);
+  if(isNaN(d)) return "[MM-DD-YYYY]";
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  const yyyy = d.getFullYear();
+  return `${mm}-${dd}-${yyyy}`;
+}
+
 /* ----- Login / Session ----- */
 function showLogin(){ loginWrap.style.display='flex'; app.style.display='none'; loginWrap.setAttribute('aria-hidden','false'); loginUser.focus(); }
 function showAppFor(user){
@@ -117,10 +256,19 @@ function showAppFor(user){
   btnGAD.style.display = access.gad ? 'inline-block' : 'none';
   btnPHQ.style.display = access.phq ? 'inline-block' : 'none';
   btnDoctor.style.display = access.doc ? 'inline-block' : 'none';
+  // default tab
   if(access.gad) selectTab('gad');
   else if(access.phq) selectTab('phq');
   else selectTab('doc');
   autofillProviderFor(user);
+  // show clock state persisted for this user (if any)
+  const keyIn = `clockIn_${user}`;
+  const keyOut = `clockOut_${user}`;
+  const prevIn = sessionStorage.getItem(keyIn);
+  const prevOut = sessionStorage.getItem(keyOut);
+  if(prevIn && !prevOut){ clockedIn = true; clockStatus.textContent = `Clocked in at ${new Date(prevIn).toLocaleString()}`; }
+  else if(prevOut){ clockedIn = false; clockStatus.textContent = `Clocked out at ${new Date(prevOut).toLocaleString()}`; }
+  else { clockedIn = false; clockStatus.textContent = 'Not clocked in'; }
 }
 
 function authenticate(){
@@ -186,10 +334,303 @@ function selectTab(which){
   if(which==='phq'){ btnPHQ.classList.add('active'); phqCard.style.display='block'; }
   if(which==='doc'){ btnDoctor.classList.add('active'); doctorCard.style.display='block'; }
 }
+btnGAD.addEventListener('click', ()=> selectTab('gad'));
+btnPHQ.addEventListener('click', ()=> selectTab('phq'));
+btnDoctor.addEventListener('click', ()=> selectTab('doc'));
 
-btnGAD.addEventListener('click', ()=>selectTab('gad'));
-btnPHQ.addEventListener('click', ()=>selectTab('phq'));
-btnDoctor.addEventListener('click', ()=>selectTab('doc'));
+/* ----- Severity mapping ----- */
+function gadScoreToSeverity(score){
+  const s = Number(score);
+  if (isNaN(s)) return null;
+  if (s >= 0 && s <= 4) return "Minimal/None";
+  if (s >= 5 && s <= 9) return "Mild";
+  if (s >= 10 && s <= 14) return "Moderate";
+  if (s >= 15 && s <= 21) return "Severe";
+  return null;
+}
+function phqScoreToSeverity(score){
+  const s = Number(score);
+  if (isNaN(s)) return null;
+  if (s >= 0 && s <= 4) return "Minimal/None";
+  if (s >= 5 && s <= 9) return "Mild";
+  if (s >= 10 && s <= 14) return "Moderate";
+  if (s >= 15 && s <= 19) return "Moderately Severe";
+  if (s >= 20 && s <= 27) return "Severe";
+  return null;
+}
+
+/* Hook score inputs */
+const gadScoreInput = document.getElementById('gad_score');
+const gadSeveritySelect = document.getElementById('gad_severity');
+if(gadScoreInput) gadScoreInput.addEventListener('input', ()=>{
+  const sev = gadScoreToSeverity(gadScoreInput.value);
+  if(sev !== null){
+    for(let i=0;i<gadSeveritySelect.options.length;i++){
+      if(gadSeveritySelect.options[i].value === sev){ gadSeveritySelect.selectedIndex = i; break; }
+    }
+  }
+});
+const phqScoreInput = document.getElementById('phq_score');
+const phqSeveritySelect = document.getElementById('phq_severity');
+if(phqScoreInput) phqScoreInput.addEventListener('input', ()=>{
+  const sev = phqScoreToSeverity(phqScoreInput.value);
+  if(sev !== null){
+    for(let i=0;i<phqSeveritySelect.options.length;i++){
+      if(phqSeveritySelect.options[i].value === sev){ phqSeveritySelect.selectedIndex = i; break; }
+    }
+  }
+});
+
+/* ----- PDF helper (adds generator and timestamp) ----- */
+function writeNoteToPDF(doc, noteText, filenamePrefix){
+  doc.setFontSize(12);
+  let y = 12;
+  const lineHeight = 7;
+  const leftMargin = 12;
+  noteText.split("\n").forEach(line=>{
+    const wrapped = doc.splitTextToSize(line, 180);
+    doc.text(wrapped, leftMargin, y);
+    y += lineHeight * wrapped.length;
+    if(y > 280){ doc.addPage(); y = 12; }
+  });
+  const safe = filenamePrefix.replace(/[^a-z0-9_\-]/gi,'_').slice(0,40) || 'note';
+  doc.save(`${safe}.pdf`);
+}
+
+/* Helper to get current logged user */
+function currentUser(){
+  return sessionStorage.getItem('psych_user') || '[Unknown]';
+}
+
+/* Append generated info (who, time, clock state) to note */
+function generateMetaString(){
+  const user = currentUser();
+  const ts = new Date().toLocaleString();
+  // Include current user's clock in/out state for context
+  const keyIn = `clockIn_${user}`;
+  const keyOut = `clockOut_${user}`;
+  const inTime = sessionStorage.getItem(keyIn);
+  const outTime = sessionStorage.getItem(keyOut);
+  let clockInfo = 'No clock record';
+  if(inTime && !outTime) clockInfo = `Clocked in since ${new Date(inTime).toLocaleString()}`;
+  else if(inTime && outTime) clockInfo = `Last clock session: in ${new Date(inTime).toLocaleString()} — out ${new Date(outTime).toLocaleString()}`;
+  return `Generated by: ${user}\nGenerated at: ${ts}\n${clockInfo}`;
+}
+
+/* ----- GAD generate/preview ----- */
+document.getElementById('gad_generate').addEventListener('click', ()=>{
+  const name = document.getElementById('gad_patientName').value || "[Name/ID]";
+  const age = document.getElementById('gad_age').value || "[Age]";
+  const date = document.getElementById('gad_date').value || new Date().toLocaleDateString();
+  const score = document.getElementById('gad_score').value || "[insert score]";
+  const severity = document.getElementById('gad_severity').value;
+  const provider = document.getElementById('gad_provider').value || "Dr. [Name], MD";
+  const report = document.getElementById('gad_report').value || "PATIENT REPORT GOES HERE";
+  const plan = document.getElementById('gad_plan').value || "PLAN GOES HERE";
+
+  const evaluation = `GAD-7 administered. Total score: ${score}.\nTHIS SCORE INDICATES [${severity.toUpperCase()}] ANXIETY`;
+
+  let note = `
+Clinical Tools — GAD-7 Note
+
+Patient: ${name}
+Age: ${age}
+Date: ${date}
+Provider: ${provider}
+
+Patient Report:
+${report}
+
+Evaluation:
+${evaluation}
+
+Plan:
+${plan}
+  `;
+
+  // add meta string
+  note += `\n\n${generateMetaString()}\n`;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  writeNoteToPDF(doc, note, `GAD7_${name}_${date}`);
+  document.getElementById('gad_output').textContent = note;
+});
+document.getElementById('gad_preview').addEventListener('click', ()=>{
+  const name = document.getElementById('gad_patientName').value || "[Name/ID]";
+  const age = document.getElementById('gad_age').value || "[Age]";
+  const date = document.getElementById('gad_date').value || new Date().toLocaleDateString();
+  const score = document.getElementById('gad_score').value || "[insert score]";
+  const severity = document.getElementById('gad_severity').value;
+  const provider = document.getElementById('gad_provider').value || "Dr. [Name], MD";
+  const report = document.getElementById('gad_report').value || "PATIENT REPORT GOES HERE";
+  const plan = document.getElementById('gad_plan').value || "PLAN GOES HERE";
+
+  const evaluation = `GAD-7 administered. Total score: ${score}.\nTHIS SCORE INDICATES [${severity.toUpperCase()}] ANXIETY`;
+
+  let note = `
+Clinical Tools — GAD-7 Note
+
+Patient: ${name}
+Age: ${age}
+Date: ${date}
+Provider: ${provider}
+
+Patient Report:
+${report}
+
+Evaluation:
+${evaluation}
+
+Plan:
+${plan}
+  `;
+  note += `\n\n${generateMetaString()}\n`;
+  document.getElementById('gad_output').textContent = note;
+});
+
+/* ----- PHQ generate/preview ----- */
+document.getElementById('phq_generate').addEventListener('click', ()=>{
+  const name = document.getElementById('phq_patientName').value || "[Name/ID]";
+  const age = document.getElementById('phq_age').value || "[Age]";
+  const date = document.getElementById('phq_date').value || new Date().toLocaleDateString();
+  const score = document.getElementById('phq_score').value || "[insert score]";
+  const severity = document.getElementById('phq_severity').value;
+  const provider = document.getElementById('phq_provider').value || "Dr. [Name], MD";
+  const report = document.getElementById('phq_report').value || "PATIENT REPORT GOES HERE";
+  const plan = document.getElementById('phq_plan').value || "PLAN GOES HERE";
+
+  const evaluation = `PHQ-9-A administered. Total score: ${score}.\nTHIS SCORE INDICATES [${severity.toUpperCase()}] DEPRESSION`;
+
+  let note = `
+Clinical Tools — PHQ-A Note
+
+Patient: ${name}
+Age: ${age}
+Date: ${date}
+Provider: ${provider}
+
+Patient Report:
+${report}
+
+Evaluation:
+${evaluation}
+
+Plan:
+${plan}
+  `;
+
+  note += `\n\n${generateMetaString()}\n`;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  writeNoteToPDF(doc, note, `PHQ-A_${name}_${date}`);
+  document.getElementById('phq_output').textContent = note;
+});
+document.getElementById('phq_preview').addEventListener('click', ()=>{
+  const name = document.getElementById('phq_patientName').value || "[Name/ID]";
+  const age = document.getElementById('phq_age').value || "[Age]";
+  const date = document.getElementById('phq_date').value || new Date().toLocaleDateString();
+  const score = document.getElementById('phq_score').value || "[insert score]";
+  const severity = document.getElementById('phq_severity').value;
+  const provider = document.getElementById('phq_provider').value || "Dr. [Name], MD";
+  const report = document.getElementById('phq_report').value || "PATIENT REPORT GOES HERE";
+  const plan = document.getElementById('phq_plan').value || "PLAN GOES HERE";
+
+  const evaluation = `PHQ-9-A administered. Total score: ${score}.\nTHIS SCORE INDICATES [${severity.toUpperCase()}] DEPRESSION`;
+
+  let note = `
+Clinical Tools — PHQ-A Note
+
+Patient: ${name}
+Age: ${age}
+Date: ${date}
+Provider: ${provider}
+
+Patient Report:
+${report}
+
+Evaluation:
+${evaluation}
+
+Plan:
+${plan}
+  `;
+  note += `\n\n${generateMetaString()}\n`;
+  document.getElementById('phq_output').textContent = note;
+});
+
+/* ----- Doctor Note generate/preview ----- */
+document.getElementById('doc_generate').addEventListener('click', ()=>{
+  const name = document.getElementById('doc_patientName').value || "[Name]";
+  const age = document.getElementById('doc_age').value || "[Age]";
+  const visitRaw = document.getElementById('doc_date').value;
+  const visit = formatMMDDYYYY(visitRaw);
+  const provider = document.getElementById('doc_provider').value || "Dr. [Name]";
+  const illness = document.getElementById('doc_illness').value || "[Illness]";
+  const start = formatMMDDYYYY(document.getElementById('doc_start').value);
+  const end = formatMMDDYYYY(document.getElementById('doc_end').value);
+  const ret = formatMMDDYYYY(document.getElementById('doc_return').value || document.getElementById('doc_end').value);
+
+  let note = `I, ${provider}, am writing this note to inform you that I have seen ${name} in my hospital on the day of ${visit}.\n\nTesting revealed ${name} has ${illness} and as ${name}'s healthcare provider I am recommending for ${name} to be excused from SCHOOL/WORK from the dates of ${start} - ${end} allowing ${name} to return on ${ret}.\n\nIf you require any additional information do not hesitate to contact me, thank you for understanding.\n\nSincerely,\n${provider}`;
+
+  note += `\n\n${generateMetaString()}\n`;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  writeNoteToPDF(doc, note, `DoctorNote_${name}_${visit}`);
+  document.getElementById('doc_output').textContent = note;
+});
+document.getElementById('doc_preview').addEventListener('click', ()=>{
+  const name = document.getElementById('doc_patientName').value || "[Name]";
+  const visitRaw = document.getElementById('doc_date').value;
+  const visit = formatMMDDYYYY(visitRaw);
+  const provider = document.getElementById('doc_provider').value || "Dr. [Name]";
+  const illness = document.getElementById('doc_illness').value || "[Illness]";
+  const start = formatMMDDYYYY(document.getElementById('doc_start').value);
+  const end = formatMMDDYYYY(document.getElementById('doc_end').value);
+  const ret = formatMMDDYYYY(document.getElementById('doc_return').value || document.getElementById('doc_end').value);
+
+  let note = `I, ${provider}, am writing this note to inform you that I have seen ${name} in my hospital on the day of ${visit}.\n\nTesting revealed ${name} has ${illness} and as ${name}'s healthcare provider I am recommending for ${name} to be excused from SCHOOL/WORK from the dates of ${start} - ${end} allowing ${name} to return on ${ret}.\n\nIf you require any additional information do not hesitate to contact me, thank you for understanding.\n\nSincerely,\n${provider}`;
+
+  note += `\n\n${generateMetaString()}\n`;
+  document.getElementById('doc_output').textContent = note;
+});
+
+/* ----- Clock In / Clock Out (per-user) ----- */
+clockInBtn.addEventListener('click', ()=>{
+  const user = currentUser();
+  if(!user || user==='[Unknown]'){ alert('Please login first'); return; }
+  const now = new Date();
+  sessionStorage.setItem(`clockIn_${user}`, now.toISOString());
+  // clear any previous out time for a fresh session
+  sessionStorage.removeItem(`clockOut_${user}`);
+  clockedIn = true;
+  clockStatus.textContent = `Clocked in at ${now.toLocaleString()}`;
+});
+
+clockOutBtn.addEventListener('click', ()=>{
+  const user = currentUser();
+  if(!user || user==='[Unknown]'){ alert('Please login first'); return; }
+  const keyIn = `clockIn_${user}`;
+  const inTime = sessionStorage.getItem(keyIn);
+  if(!inTime){ alert('You must clock in first'); return; }
+  const now = new Date();
+  sessionStorage.setItem(`clockOut_${user}`, now.toISOString());
+  clockedIn = false;
+  clockStatus.textContent = `Clocked out at ${now.toLocaleString()}`;
+});
+
+/* ----- Initialize on page load ----- */
+function checkSession(){
+  const u = sessionStorage.getItem('psych_user');
+  if(u && ACCOUNTS[u]) showAppFor(u);
+  else showLogin();
+}
+// run
+checkSession();
+
 </script>
+
 </body>
 </html>
